@@ -31,15 +31,25 @@ const SESSION_DATA_PATH_PAIRING = './temp_pairing_session_data';
 const cleanupQrClient = async () => {
     if (whatsappClient) {
         try {
-            await whatsappClient.destroy();
-            console.log("WhatsApp client destroyed for QR.");
+            // Defensive check for pupBrowser, as error indicated 'close' was called on null
+            if (whatsappClient.pupBrowser) {
+                await whatsappClient.destroy();
+                console.log("WhatsApp client for QR destroyed successfully.");
+            } else {
+                console.log("WhatsApp client for QR (or its browser instance) not fully available, skipping destroy call but resetting state.");
+            }
         } catch (e) {
-            console.error("Error destroying QR client:", e);
+            console.error("Error during whatsappClient.destroy() for QR:", e.message); // Log only message
         }
     }
-    if (fs.existsSync(SESSION_DATA_PATH_QR)) {
-        fs.rmSync(SESSION_DATA_PATH_QR, { recursive: true, force: true });
-        console.log("Temporary QR session data cleaned up.");
+    try {
+        if (fs.existsSync(SESSION_DATA_PATH_QR)) {
+            fs.rmSync(SESSION_DATA_PATH_QR, { recursive: true, force: true });
+            console.log("Temporary QR session data cleaned up.");
+        }
+    } catch (e) {
+        console.error(`Error cleaning up QR session directory ${SESSION_DATA_PATH_QR}:`, e.message);
+        // If EBUSY, it might be due to puppeteer not closing fully/quickly enough
     }
     whatsappClient = null;
     currentQR = null;
@@ -52,15 +62,23 @@ const cleanupQrClient = async () => {
 const cleanupPairingClient = async () => {
     if (pairingCodeClient) {
         try {
-            await pairingCodeClient.destroy();
-            console.log("WhatsApp client destroyed for Pairing Code.");
+            if (pairingCodeClient.pupBrowser) {
+                await pairingCodeClient.destroy();
+                console.log("WhatsApp client for Pairing Code destroyed successfully.");
+            } else {
+                console.log("WhatsApp client for Pairing Code (or its browser instance) not fully available, skipping destroy call but resetting state.");
+            }
         } catch (e) {
-            console.error("Error destroying Pairing Code client:", e);
+            console.error("Error during pairingCodeClient.destroy() for Pairing Code:", e.message); // Log only message
         }
     }
-    if (fs.existsSync(SESSION_DATA_PATH_PAIRING)) {
-        fs.rmSync(SESSION_DATA_PATH_PAIRING, { recursive: true, force: true });
-        console.log("Temporary Pairing Code session data cleaned up.");
+    try {
+        if (fs.existsSync(SESSION_DATA_PATH_PAIRING)) {
+            fs.rmSync(SESSION_DATA_PATH_PAIRING, { recursive: true, force: true });
+            console.log("Temporary Pairing Code session data cleaned up.");
+        }
+    } catch (e) {
+        console.error(`Error cleaning up Pairing Code session directory ${SESSION_DATA_PATH_PAIRING}:`, e.message);
     }
     pairingCodeClient = null;
     currentPairingCode = null;
