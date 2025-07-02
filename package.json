@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "WHIZBotPro — a multifunctional WhatsApp bot powered by Baileys",
   "main": "bot.js",
+  "license": "MIT",
   "scripts": {
     "start": "node bot.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0",
+    "@whiskeysockets/baileys": "^6.7.0",
     "@hapi/boom": "^10.0.0",
     "pino": "^8.0.0",
     "figlet": "^1.5.2",
