@@ -100,23 +100,26 @@ This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used 
 
 ### Error: "Could not find expected browser (chrome) locally."
 
-This is the most common error and means that Puppeteer (used by `whatsapp-web.js`) could not find a compatible version of Chromium to use.
+This error means that Puppeteer (used by `whatsapp-web.js`) could not find or launch a compatible version of Chromium. This project now includes `puppeteer` as a direct dependency, which means `npm install` should download a known-compatible version of Chromium into your `node_modules` folder. The application will attempt to use this version by default.
+
+If you still encounter this error, here's how to troubleshoot:
 
 1.  **Ensure `npm install` Completed Successfully:**
-    *   The `npm install` command is supposed to download a specific version of Chromium that Puppeteer needs. This download can sometimes fail due to network issues, firewalls, or antivirus software.
-    *   When you run `npm install`, carefully check the output for any errors, especially messages related to "Puppeteer" or "Chromium download".
+    *   The `npm install` command *must* complete without errors. It's responsible for downloading `puppeteer` and its bundled Chromium.
+    *   Watch the output of `npm install` carefully for any messages related to "Puppeteer" or "Chromium download" failing (e.g., due to network issues, firewalls, antivirus software).
 
-2.  **Force Re-download of Chromium:**
-    *   If you suspect Chromium didn't download correctly:
+2.  **Force Clean Installation & Re-download of Chromium:**
+    *   If you suspect an incomplete or corrupted download:
         1.  Delete the `node_modules` folder in your `whiz-session-generator` directory.
         2.  Delete the `package-lock.json` file (if it exists).
-        3.  Run `npm install` again from your terminal within the `whiz-session-generator` directory. Monitor the output closely.
+        3.  Run `npm install` again. Monitor the output closely for Puppeteer's Chromium download progress and success messages.
 
-3.  **Check Environment Variables:**
-    *   Ensure you don't have an environment variable `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` set to `true` (or `1`), as this would prevent the download.
+3.  **Check `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` Environment Variable:**
+    *   Ensure this environment variable is NOT set to `true` (or `1`) when you run `npm install`, as this would explicitly prevent Puppeteer from downloading its bundled Chromium.
 
-4.  **Use a System-Installed Chrome/Chromium via `PUPPETEER_EXECUTABLE_PATH` (Recommended Workaround if download fails):**
-    *   If Puppeteer's automatic Chromium download repeatedly fails, you can tell it to use an existing Chrome or Chromium browser installed on your system.
+4.  **(Override) Use a System-Installed Chrome/Chromium via `PUPPETEER_EXECUTABLE_PATH`:**
+    *   If, for some reason, the Chromium bundled with the `puppeteer` npm package cannot be used or if you prefer to use a specific system-installed version of Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable.
+    *   The application will prioritize this environment variable if set.
     *   **Find your Chrome executable path:**
         *   **Windows:** Usually `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`. You can find it by right-clicking your Chrome shortcut, going to Properties, and looking at the "Target" field.
         *   **macOS:** Usually `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.

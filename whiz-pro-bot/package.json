@@ -10,13 +10,15 @@
   "keywords": [
     "whatsapp",
     "bot",
-    "automation"
+    "automation",
+    "whiz"
   ],
   "author": "Jules AI",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "whatsapp-web.js": "^1.23.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^16.3.1"
   }
 }

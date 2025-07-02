@@ -3,6 +3,7 @@ const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode'); // For generating QR image data for web
 const fs = require('fs'); // For session cleanup if needed
+const puppeteer = require('puppeteer'); // Import puppeteer
 
 // const whatsappHandler = require('./whatsapp_handler'); // Will be developed later
 
@@ -159,13 +160,19 @@ const initializeWhatsAppClientForQR = () => {
     const puppeteerArgsQR = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
     const puppeteerOptions = { headless: true, args: puppeteerArgsQR };
 
+    const defaultExecutablePath = puppeteer.executablePath();
+    console.log(`[QR_INIT] Default executable path from Puppeteer module: ${defaultExecutablePath}`);
+
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        console.log(`[QR_INIT] Using custom executable path for Puppeteer: ${puppeteerOptions.executablePath}`);
+        console.log(`[QR_INIT] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
+    } else if (defaultExecutablePath) {
+        puppeteerOptions.executablePath = defaultExecutablePath;
+        console.log(`[QR_INIT] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
     } else {
-        console.log(`[QR_INIT] Using default Puppeteer Chromium download.`);
+        console.log(`[QR_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search.`);
     }
-    console.log(`[QR_INIT] Puppeteer args: ${JSON.stringify(puppeteerArgsQR)}`);
+    console.log(`[QR_INIT] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
 
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: "whiz-qr-linker", dataPath: SESSION_DATA_PATH_QR }),
@@ -284,13 +291,19 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
     const puppeteerArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
     const puppeteerOptions = { headless: true, args: puppeteerArgs };
 
+    const defaultExecutablePath = puppeteer.executablePath();
+    console.log(`[PAIRING_INIT ${phoneNumber}] Default executable path from Puppeteer module: ${defaultExecutablePath}`);
+
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        console.log(`[PAIRING_INIT ${phoneNumber}] Using custom executable path for Puppeteer: ${puppeteerOptions.executablePath}`);
+        console.log(`[PAIRING_INIT ${phoneNumber}] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
+    } else if (defaultExecutablePath) {
+        puppeteerOptions.executablePath = defaultExecutablePath;
+        console.log(`[PAIRING_INIT ${phoneNumber}] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
     } else {
-        console.log(`[PAIRING_INIT ${phoneNumber}] Using default Puppeteer Chromium download.`);
+        console.log(`[PAIRING_INIT ${phoneNumber}] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search.`);
     }
-    console.log(`[PAIRING_INIT ${phoneNumber}] Puppeteer args: ${JSON.stringify(puppeteerArgs)}`);
+    console.log(`[PAIRING_INIT ${phoneNumber}] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
 
     pairingCodeClient = new Client({
         authStrategy: new LocalAuth({ clientId: clientId, dataPath: SESSION_DATA_PATH_PAIRING }),
