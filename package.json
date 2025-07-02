@@ -1,17 +1,17 @@
 {
   "name": "whiz-whatsapp-bot",
   "version": "1.0.0",
-  "description": "A multifunctional WhatsApp bot using Baileys",
+  "description": "WHIZBotPro — a multifunctional WhatsApp bot powered by Baileys",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0",
-    "express": "^4.18.2",
-    "ejs": "^3.1.8",
-    "pino": "^8.11.0",
-    "moment": "^2.29.4",
-    "fs-extra": "^11.1.1"
+    "@whiskeysockets/baileys": "^7.0.0",
+    "@hapi/boom": "^10.0.0",
+    "pino": "^8.0.0",
+    "figlet": "^1.5.2",
+    "chalk": "^5.0.0",
+    "moment": "^2.29.4"
   }
 }
