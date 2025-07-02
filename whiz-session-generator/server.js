@@ -132,10 +132,9 @@ const sendSessionToUser = async (clientInstance, sessionDataString, linkMethod) 
 };
 // --- End Session Capture & Delivery Function ---
 
-
 // Function to initialize WhatsApp client for QR linking
 const initializeWhatsAppClientForQR = () => {
-    if (whatsappClient || clientInitializing) { // Check QR client state
+    if (whatsappClient || clientInitializing) {
         console.log("QR Client already exists or is initializing.");
         return;
     }
@@ -143,16 +142,27 @@ const initializeWhatsAppClientForQR = () => {
     clientInitializing = true;
     isAuthenticated = false;
     authError = null;
-    currentQR = null; // Reset QR code
+    currentQR = null;
+    let initTimeoutId = null;
+
+    const clearInitializationTimeout = () => {
+        if (initTimeoutId) {
+            clearTimeout(initTimeoutId);
+            initTimeoutId = null;
+        }
+    };
 
     if (fs.existsSync(SESSION_DATA_PATH_QR)) {
         fs.rmSync(SESSION_DATA_PATH_QR, { recursive: true, force: true });
     }
-
+    console.log(`[QR_INIT] Creating new Client instance for QR.`);
+    const puppeteerArgsQR = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+    console.log(`[QR_INIT] Puppeteer args: ${JSON.stringify(puppeteerArgsQR)}`);
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: "whiz-qr-linker", dataPath: SESSION_DATA_PATH_QR }),
-        puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] },
+        puppeteer: { headless: true, args: puppeteerArgsQR },
     });
+    console.log(`[QR_INIT] Client instance for QR created. Attaching event listeners.`);
 
     whatsappClient.on('qr', async (qrValue) => {
         console.log('QR RECEIVED (for web)', qrValue);
@@ -166,8 +176,9 @@ const initializeWhatsAppClientForQR = () => {
         }
     });
 
-    whatsappClient.on('authenticated', async () => { // Session object is not directly passed with LocalAuth
+    whatsappClient.on('authenticated', async () => {
         console.log('AUTHENTICATED via QR!');
+        clearInitializationTimeout();
         isAuthenticated = true;
         currentQR = null;
 
@@ -176,22 +187,19 @@ const initializeWhatsAppClientForQR = () => {
             const sessionData = fs.readFileSync(sessionFilePath, 'utf-8');
             try {
                 await sendSessionToUser(whatsappClient, sessionData, 'QR');
-                // authError will be null if successful
             } catch (sendError) {
                 console.error("Error sending session after QR auth:", sendError.message);
-                authError = sendError.message; // Set authError to display on frontend
+                authError = sendError.message;
             }
         } else {
             console.error("Session file not found after QR auth!");
             authError = "Session file not found after authentication.";
         }
-        // Do not destroy client immediately, sendSessionToUser needs it.
-        // It will be cleaned up by cleanupQrClient() called by frontend or timeout.
-        // setTimeout(cleanupQrClient, 15000); // Increased timeout or handle cleanup differently
     });
 
     whatsappClient.on('auth_failure', async (msg) => {
         console.error('QR AUTHENTICATION FAILURE', msg);
+        clearInitializationTimeout();
         authError = `Authentication Failed: ${msg}. Please try refreshing.`;
         isAuthenticated = false;
         currentQR = null;
@@ -200,26 +208,38 @@ const initializeWhatsAppClientForQR = () => {
 
     whatsappClient.on('disconnected', async (reason) => {
         console.log('Client was logged out (QR)', reason);
-        // Only set error if not already authenticated successfully
+        clearInitializationTimeout();
         if (!isAuthenticated) {
             authError = "Client disconnected. Please try again.";
         }
-        currentQR = null; // Clear QR on disconnect
-        // Don't cleanup immediately if it was an authenticated session that got disconnected later.
-        // Let timeout or manual refresh handle it.
-        // await cleanupQrClient();
+        currentQR = null;
     });
 
+    console.log(`[QR_INIT] Attempting to call whatsappClient.initialize().`);
+    const QR_TIMEOUT_DURATION = 90000; // 90 seconds
+    initTimeoutId = setTimeout(async () => {
+        // Check if the timeout variable is still the same, meaning it wasn't cleared by success/failure.
+        if (initTimeoutId && clientInitializing && !isAuthenticated) {
+            console.error(`[QR_INIT] Initialization TIMEOUT after ${QR_TIMEOUT_DURATION/1000}s. Attempting cleanup.`);
+            authError = `Initialization timed out. Please try again.`;
+            clientInitializing = false;
+            await cleanupQrClient();
+        }
+    }, QR_TIMEOUT_DURATION);
+
     whatsappClient.initialize().then(() => {
+        clearInitializationTimeout();
         clientInitializing = false;
-        console.log("WhatsApp client for QR initialized.");
+        console.log("[QR_INIT] WhatsApp client for QR initialized successfully.");
     }).catch(async err => {
-        console.error("Failed to initialize client for QR:", err);
-        authError = "Failed to initialize WhatsApp client. Please try again later.";
+        clearInitializationTimeout();
+        console.error("[QR_INIT] Failed to initialize client for QR:", err);
+        authError = `Failed to initialize WhatsApp client for QR: ${err.message}`;
         clientInitializing = false;
         await cleanupQrClient();
     });
 };
+
 
 // Function to initialize WhatsApp client for Pairing Code linking
 const initializeWhatsAppClientForPairing = (phoneNumber) => {
@@ -232,21 +252,33 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
             return Promise.reject(new Error("Pairing process already active."));
         }
     }
-    console.log(`Initializing new WhatsApp client for Pairing Code with number: ${phoneNumber}`);
+    console.log(`[PAIRING_INIT ${phoneNumber}] Called initializeWhatsAppClientForPairing.`);
     pairingCodeInitializing = true;
     isPairingAuthenticated = false;
     pairingCodeError = null;
     currentPairingCode = null;
+    let initTimeoutId = null;
+
+    const clearInitializationTimeout = () => {
+        if (initTimeoutId) {
+            clearTimeout(initTimeoutId);
+            initTimeoutId = null;
+        }
+    };
 
     if (fs.existsSync(SESSION_DATA_PATH_PAIRING)) {
         fs.rmSync(SESSION_DATA_PATH_PAIRING, { recursive: true, force: true });
     }
 
-    const clientId = `whiz-pairing-linker-${phoneNumber}`; // Make clientId unique per phone number
+    const clientId = `whiz-pairing-linker-${phoneNumber}`;
+    console.log(`[PAIRING_INIT ${phoneNumber}] Creating new Client instance with clientId: ${clientId}`);
+    const puppeteerArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+    console.log(`[PAIRING_INIT ${phoneNumber}] Puppeteer args: ${JSON.stringify(puppeteerArgs)}`);
     pairingCodeClient = new Client({
         authStrategy: new LocalAuth({ clientId: clientId, dataPath: SESSION_DATA_PATH_PAIRING }),
-        puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] },
+        puppeteer: { headless: true, args: puppeteerArgs },
     });
+    console.log(`[PAIRING_INIT ${phoneNumber}] Client instance created. Attaching event listeners.`);
 
     pairingCodeClient.on('pairing_code', (code) => {
         console.log(`PAIRING CODE RECEIVED: ${code}`);
@@ -254,8 +286,9 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
         pairingCodeError = null;
     });
 
-    pairingCodeClient.on('authenticated', async () => { // Session not passed here
+    pairingCodeClient.on('authenticated', async () => {
         console.log('AUTHENTICATED via Pairing Code!');
+        clearInitializationTimeout();
         isPairingAuthenticated = true;
         currentPairingCode = null;
 
@@ -264,20 +297,19 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
             const sessionData = fs.readFileSync(sessionFilePath, 'utf-8');
             try {
                 await sendSessionToUser(pairingCodeClient, sessionData, 'PairingCode');
-                // pairingCodeError will be null if successful
             } catch (sendError) {
                 console.error("Error sending session after Pairing auth:", sendError.message);
-                pairingCodeError = sendError.message; // Set error to display on frontend
+                pairingCodeError = sendError.message;
             }
         } else {
             console.error("Session file not found after Pairing auth!");
             pairingCodeError = "Session file not found after authentication.";
         }
-        // setTimeout(cleanupPairingClient, 15000); // Increased timeout
     });
 
     pairingCodeClient.on('auth_failure', async (msg) => {
         console.error('PAIRING AUTHENTICATION FAILURE', msg);
+        clearInitializationTimeout();
         pairingCodeError = `Authentication Failed: ${msg}. Please try again.`;
         isPairingAuthenticated = false;
         currentPairingCode = null;
@@ -286,23 +318,39 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
 
     pairingCodeClient.on('disconnected', async (reason) => {
         console.log('Pairing Client was logged out', reason);
+        clearInitializationTimeout();
         if(!isPairingAuthenticated) {
             pairingCodeError = "Client disconnected. Please try again.";
         }
         currentPairingCode = null;
-        // await cleanupPairingClient();
     });
 
     return new Promise((resolve, reject) => {
+        console.log(`[PAIRING_INIT ${phoneNumber}] Attempting to call pairingCodeClient.initialize().`);
+
+        const PAIRING_TIMEOUT_DURATION = 90000; // 90 seconds
+        initTimeoutId = setTimeout(async () => {
+            // Check if the timeout variable is still the same, meaning it wasn't cleared by success/failure/error.
+            if (initTimeoutId && pairingCodeInitializing && !isPairingAuthenticated) {
+                console.error(`[PAIRING_INIT ${phoneNumber}] Initialization TIMEOUT after ${PAIRING_TIMEOUT_DURATION/1000}s. Attempting cleanup.`);
+                pairingCodeError = `Initialization timed out. Please try again.`;
+                pairingCodeInitializing = false;
+                await cleanupPairingClient();
+                reject(new Error(pairingCodeError));
+            }
+        }, PAIRING_TIMEOUT_DURATION);
+
         pairingCodeClient.initialize()
             .then(async () => {
+                clearInitializationTimeout();
                 pairingCodeInitializing = false;
-                console.log("Pairing client initialized. Ready to request pairing code via API.");
+                console.log(`[PAIRING_INIT ${phoneNumber}] Successfully initialized Pairing client.`);
                 resolve();
             })
             .catch(async err => {
-                console.error("Failed to initialize client for Pairing:", err);
-                pairingCodeError = "Failed to initialize WhatsApp client for pairing.";
+                clearInitializationTimeout();
+                console.error(`[PAIRING_INIT ${phoneNumber}] Failed to initialize client for Pairing:`, err);
+                pairingCodeError = `Failed to initialize WhatsApp client for pairing: ${err.message}`;
                 pairingCodeInitializing = false;
                 await cleanupPairingClient();
                 reject(err);
