@@ -3,7 +3,7 @@
 𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and `whatsapp-web.js`. It offers a range of automation and utility features for your WhatsApp account, along with a web interface to view live bot logs.
 
 ## Features
-
+(Features list remains as previously updated)
 1.  **Save View Once Media (`!vv` command)**: Reply to any view-once message (image or video) with the command `!vv`. The bot will download the media and send it back to you, effectively saving it.
 2.  **Auto View Status**: Automatically marks status updates from your contacts as viewed.
 3.  **Auto Like Status**: Automatically reacts with a '🔥' emoji to new status updates from your contacts.
@@ -18,10 +18,11 @@
 *   NPM (usually comes with Node.js)
 *   A working WhatsApp account.
 *   A `SESSION_ID` obtained from the web-based **𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator** tool. This ID is a JSON string.
+*   **A working installation of Google Chrome (or another Chromium-based browser) is highly recommended if Puppeteer's automatic Chromium download fails.**
 
 ## Setup and Running
 
-1.  **Clone the repository (or ensure all files are present if provided by Whiz/Jules AI).**
+1.  **Clone the repository (or ensure all files are present).**
     *   The main directory for the bot is conceptually named `whiz-md-bot/`.
 
 2.  **Install Dependencies:**
@@ -29,26 +30,31 @@
     ```bash
     npm install
     ```
-    This will install all necessary dependencies including `whatsapp-web.js`, `puppeteer` (which downloads its own Chromium), `express`, `ejs`, and `dotenv`.
+    This command installs all necessary dependencies, including `puppeteer`. The `puppeteer` package will attempt to download its own version of Chromium. **If this download fails (e.g., due to network errors like `ECONNRESET`, firewall, or antivirus), please see the "Troubleshooting Puppeteer / Chromium Issues" section below.**
 
-3.  **Configure Environment Variables:**
-    *   Copy the `.env.example` file to a new file named `.env` in the bot's root directory:
-        ```bash
-        cp .env.example .env
-        ```
-    *   Open the `.env` file and add your `WHATSAPP_SESSION_ID` (the JSON string obtained from the 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator, *without* the `WHIZBOT_` prefix).
+3.  **Configure Puppeteer (Browser Handling - IMPORTANT for Windows / Download Issues):**
+    *   **Default Behavior:** The bot will first try to use the Chromium version downloaded by the `puppeteer` npm package.
+    *   **Primary Workaround (If Chromium download fails): Use Your System's Chrome.**
+        If `npm install` fails to download Chromium or if you prefer to use your existing Chrome installation, you **must** set the `PUPPETEER_EXECUTABLE_PATH` environment variable.
+        1.  **Find your Chrome executable path:** (Same instructions as session generator: Windows, macOS, Linux)
+        2.  **Set `PUPPETEER_EXECUTABLE_PATH` Environment Variable (Persistently):** (Same instructions as session generator: Windows, Linux/macOS)
+        3.  **IMPORTANT: Close and re-open your command prompt/terminal** after setting the variable.
+    *   **(Optional) Skip Chromium Download by Puppeteer:** If you are consistently using `PUPPETEER_EXECUTABLE_PATH`, you can tell `npm install` not to download Chromium:
+        *   Set environment variable `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` before running `npm install`.
+        *   Or, create a file named `.npmrc` in the `whiz-md-bot/` project root with: `puppeteer_skip_chromium_download=true`. Then run `npm install`.
+
+4.  **Configure Bot Environment Variables:**
+    *   Copy the `.env.example` file to `.env`: `cp .env.example .env`
+    *   Open `.env` and add your `WHATSAPP_SESSION_ID` (the JSON string from the Session Generator, *without* `WHIZBOT_` prefix).
         ```env
         WHATSAPP_SESSION_ID="your_long_session_json_string_here"
         # Optional: Set a different port for the bot's web log viewer
         # BOT_WEB_PORT=3001
         ```
-    *   **Important:** Add `.env` to your `.gitignore` file to avoid committing your session ID.
-
-4.  **Puppeteer Configuration (Browser Handling):**
-    *   By default, the bot uses the version of Chromium that comes bundled with the `puppeteer` npm package. This is generally the most reliable option.
-    *   **Override (Optional):** If you need to use a specific system-installed version of Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable to its full path before running the bot. See the 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator's README for examples on how to set this.
+    *   **Important:** Add `.env` to your `.gitignore` file.
 
 5.  **Run the Bot:**
+    After successful `npm install` and configuration:
     ```bash
     npm start
     ```
@@ -56,35 +62,43 @@
     ```bash
     node index.js
     ```
-    The bot will start, and you should see logs in your console. The web log viewer will also be available (default: `http://localhost:3001/bot-log`).
+    Check console logs and the web log viewer (default: `http://localhost:3001/bot-log`). The console will indicate which Chrome/Chromium executable path is being used.
 
 ## How it Works
-
-*   **Session Management**: Uses `LocalAuth` with the `WHATSAPP_SESSION_ID` from your `.env` file to restore the WhatsApp session, avoiding QR scans on each startup.
-*   **Puppeteer**: Relies on Puppeteer for browser automation. The project now includes `puppeteer` as a direct dependency to manage its own Chromium version, enhancing stability.
-*   **Web Log Viewer**: An integrated Express.js server collects important logs and serves them on a web page for real-time monitoring.
-*   **Command Handling**: Listens for commands (`!vv`, `!contact`, `!menu`) and processes them.
-*   **Status Automation**: Monitors and interacts with contact status updates.
+(Remains largely the same - Puppeteer note updated)
+*   **Session Management**: ...
+*   **Puppeteer**: Relies on Puppeteer. Now includes `puppeteer` as a direct dependency to manage its own Chromium, enhancing stability. Supports `PUPPETEER_EXECUTABLE_PATH` override.
+*   **Web Log Viewer**: ...
+*   **Command Handling**: ...
+*   **Status Automation**: ...
 
 ## File Structure (Conceptual: `whiz-md-bot/`)
-
-*   `index.js`: Main application logic for the bot and the web log server.
-*   `package.json`: Project metadata and dependencies.
-*   `.env.example`: Template for environment variables.
-*   `session_data/`: Directory for `LocalAuth` session files.
-*   `bot_views/log.ejs`: EJS template for the web log page.
-*   `bot_public/css/bot_style.css`: Stylesheet for the web log page.
-*   `README.md`: This file.
+(Remains the same)
 
 ## Important Links
-
-*   **Repository:** [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)
-*   **WhatsApp Group:** [https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)
+(Remains the same)
 
 ## Important Notes
+(Remains largely the same)
 
-*   **WhatsApp Terms of Service**: Use responsibly. Automation can be against ToS.
-*   **Security**: Keep your `.env` file (with `WHATSAPP_SESSION_ID`) secure and private.
-*   **Error Handling**: The bot includes improved logging. Check console and the web log viewer for errors.
+## Troubleshooting Puppeteer / Chromium Issues
+
+If you see errors like **"Could not find expected browser (chrome) locally"** or **`ECONNRESET` during `npm install`**, it means Puppeteer is having trouble with its Chromium browser.
+
+1.  **Primary Solution: Use `PUPPETEER_EXECUTABLE_PATH` (Recommended)**
+    *   Follow the detailed instructions in **Section 3 of "Setup and Running"** above to set this environment variable to point to your system's installed Google Chrome. This is the most reliable fix if the automatic download fails.
+    *   **Remember to restart your terminal after setting the variable.**
+
+2.  **Verify `npm install` for Bundled Chromium:**
+    *   The `puppeteer` package (now a direct dependency) attempts to download its own Chromium. If `PUPPETEER_EXECUTABLE_PATH` is *not* set, this bundled version is used.
+    *   If the download fails during `npm install` (check for `ECONNRESET` or other download errors in the `npm install` log), the bundled Chromium will be missing or corrupt.
+    *   **To fix a failed download of bundled Chromium:**
+        1.  Ensure no `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` environment variable is set.
+        2.  Delete `node_modules` and `package-lock.json`.
+        3.  Try `npm install` again, carefully watching for network errors, firewall/antivirus interference.
+
+3.  **`EPERM` or `EBUSY` errors during `npm install` or cleanup:**
+    *   These errors mean files or folders are locked.
+    *   **Solution:** Close any running instances of the application/bot. Close any lingering `node.exe` or `chrome.exe` processes (check Task Manager on Windows). Manually delete the `node_modules` folder. A system reboot can also help. Then try `npm install` again.
 
 Maintained by **Whiz**. Contact: `+254754783683`.

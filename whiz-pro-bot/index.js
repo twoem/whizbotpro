@@ -69,24 +69,33 @@ if (SESSION_ID_CONTENT) {
     addLog('WHATSAPP_SESSION_ID not found. LocalAuth will attempt to use existing session or create a new one.', 'WARNING');
 }
 
+// --- Puppeteer Options ---
 const puppeteerArgs = [
     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
     '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--disable-gpu'
 ];
 const puppeteerOptions = { headless: true, args: puppeteerArgs };
-const defaultExecutablePath = puppeteer.executablePath();
-addLog(`[BOT_INIT] Default executable path from Puppeteer module: ${defaultExecutablePath}`);
+let determinedExecutablePath = null;
+
+try {
+    determinedExecutablePath = puppeteer.executablePath();
+    addLog(`[BOT_INIT] Default executable path from Puppeteer module: ${determinedExecutablePath}`);
+} catch (e) {
+    addLog(`[BOT_INIT] Warning: Could not retrieve executable path from Puppeteer module: ${e.message}. This might happen if Puppeteer installation is incomplete.`, 'WARNING');
+    determinedExecutablePath = null;
+}
 
 if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     addLog(`[BOT_INIT] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
-} else if (defaultExecutablePath) {
-    puppeteerOptions.executablePath = defaultExecutablePath;
+} else if (determinedExecutablePath) {
+    puppeteerOptions.executablePath = determinedExecutablePath;
     addLog(`[BOT_INIT] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
 } else {
-    addLog(`[BOT_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search.`, 'WARNING');
+    addLog(`[BOT_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search (might fail if system Chrome not found).`, 'WARNING');
 }
 addLog(`[BOT_INIT] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
+// --- End Puppeteer Options ---
 
 const client = new Client({
     authStrategy: new LocalAuth({ clientId: CLIENT_ID, dataPath: DATA_PATH }), // Uses new CLIENT_ID
@@ -117,7 +126,7 @@ client.on('authenticated', () => {
 });
 
 client.on('auth_failure', msg => {
-    addLog(`[BOT_AUTH_FAILURE] AUTHENTICATION FAILURE: ${msg}`, 'ERROR');
+    addLog(`[BOT_AUTH_FAILURE] AUTHENTICATION FAILURE: ${String(msg)}`, 'ERROR'); // Ensure msg is string
     addLog(`[BOT_AUTH_FAILURE] Failed to authenticate. If you provided a SESSION_ID, it might be invalid or corrupted. Path: ${path.join(DATA_PATH, `session-${CLIENT_ID}.json`)}`, 'ERROR');
     clearClientInitializationTimeout();
     process.exit(1);
@@ -161,7 +170,7 @@ client.on('ready', async () => {
 });
 
 client.on('disconnected', (reason) => {
-    addLog(`[BOT_DISCONNECTED] Client was logged out: ${reason}`, 'WARNING');
+    addLog(`[BOT_DISCONNECTED] Client was logged out: ${String(reason)}`, 'WARNING'); // Ensure reason is string
     clearClientInitializationTimeout();
     process.exit(1);
 });
@@ -240,8 +249,7 @@ Group: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM
             const contactOwner = "Whiz";
             const contactNumber = "254754783683";
             const contactLink = `https://wa.me/${contactNumber}`;
-            // Group link will be added in the next step explicitly to this message
-            const contactMessage = `You can reach out to the owner (${contactOwner}) here: ${contactLink}`;
+            const contactMessage = `You can reach out to the owner (${contactOwner}) here: ${contactLink}\nFor community support, join our WhatsApp group: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM`;
             await client.sendMessage(msg.from, contactMessage);
             addLog(`[MSG_HANDLER] Sent contact link to ${msg.from}`);
             return;
@@ -286,7 +294,7 @@ app.use('/bot-static', express.static(path.join(__dirname, 'bot_public')));
 
 app.get('/bot-log', (req, res) => {
     res.render('log', {
-        title: '𝐖𝐇𝐈𝐙-𝐌𝐃 Bot Logs', // Renamed
+        title: '𝐖𝐇𝐈𝐙-𝐌𝐃 Bot Logs',
         MAX_LOG_ENTRIES: MAX_LOG_ENTRIES
     });
 });
@@ -296,23 +304,23 @@ app.get('/bot-api/logs', (req, res) => {
 });
 
 app.listen(BOT_WEB_PORT, () => {
-    addLog(`[BOT_WEB] 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot log server listening on http://localhost:${BOT_WEB_PORT}/bot-log`); // Renamed
+    addLog(`[BOT_WEB] 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot log server listening on http://localhost:${BOT_WEB_PORT}/bot-log`);
 });
 // --- End Express Web Server ---
 
 const cleanup = async () => {
-    addLog("Caught interrupt signal for 𝐖𝐇𝐈𝐙-𝐌𝐃. Shutting down gracefully..."); // Renamed
+    addLog("Caught interrupt signal for 𝐖𝐇𝐈𝐙-𝐌𝐃. Shutting down gracefully...");
     clearClientInitializationTimeout();
     if (client) {
         try {
             if (client.pupBrowser) {
                 await client.destroy();
-                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client destroyed."); // Renamed
+                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client destroyed.");
             } else {
-                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client (or its browser) was not fully initialized, skipping destroy call."); // Renamed
+                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client (or its browser) was not fully initialized, skipping destroy call.");
             }
         } catch (err) {
-            addLog(`Error destroying 𝐖𝐇𝐈𝐙-𝐌𝐃 client during cleanup: ${err.message}`, 'ERROR'); // Renamed
+            addLog(`Error destroying 𝐖𝐇𝐈𝐙-𝐌𝐃 client during cleanup: ${err.message}`, 'ERROR');
         }
     }
     process.exit(0);
@@ -321,4 +329,4 @@ const cleanup = async () => {
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 
-addLog("Core logic for 𝐖𝐇𝐈𝐙-𝐌𝐃 setup complete. Client is initializing..."); // Renamed
+addLog("Core logic for 𝐖𝐇𝐈𝐙-𝐌𝐃 setup complete. Client is initializing...");

@@ -163,18 +163,24 @@ const initializeWhatsAppClientForQR = () => {
     console.log(`[QR_INIT] Creating new Client instance for QR.`);
     const puppeteerArgsQR = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
     const puppeteerOptions = { headless: true, args: puppeteerArgsQR };
+    let determinedExecutablePath = null;
 
-    const defaultExecutablePath = puppeteer.executablePath();
-    console.log(`[QR_INIT] Default executable path from Puppeteer module: ${defaultExecutablePath}`);
+    try {
+        determinedExecutablePath = puppeteer.executablePath();
+        console.log(`[QR_INIT] Default executable path from Puppeteer module: ${determinedExecutablePath}`);
+    } catch (e) {
+        console.warn(`[QR_INIT] Warning: Could not retrieve executable path from Puppeteer module: ${e.message}.`);
+        determinedExecutablePath = null;
+    }
 
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         console.log(`[QR_INIT] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
-    } else if (defaultExecutablePath) {
-        puppeteerOptions.executablePath = defaultExecutablePath;
+    } else if (determinedExecutablePath) {
+        puppeteerOptions.executablePath = determinedExecutablePath;
         console.log(`[QR_INIT] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
     } else {
-        console.log(`[QR_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search.`);
+        console.log(`[QR_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search (might fail if system Chrome not found).`);
     }
     console.log(`[QR_INIT] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
 
@@ -294,18 +300,24 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
     console.log(`[PAIRING_INIT ${phoneNumber}] Creating new Client instance with clientId: ${clientId}`);
     const puppeteerArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
     const puppeteerOptions = { headless: true, args: puppeteerArgs };
+    let determinedExecutablePath = null;
 
-    const defaultExecutablePath = puppeteer.executablePath();
-    console.log(`[PAIRING_INIT ${phoneNumber}] Default executable path from Puppeteer module: ${defaultExecutablePath}`);
+    try {
+        determinedExecutablePath = puppeteer.executablePath();
+        console.log(`[PAIRING_INIT ${phoneNumber}] Default executable path from Puppeteer module: ${determinedExecutablePath}`);
+    } catch (e) {
+        console.warn(`[PAIRING_INIT ${phoneNumber}] Warning: Could not retrieve executable path from Puppeteer module: ${e.message}.`);
+        determinedExecutablePath = null;
+    }
 
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         console.log(`[PAIRING_INIT ${phoneNumber}] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
-    } else if (defaultExecutablePath) {
-        puppeteerOptions.executablePath = defaultExecutablePath;
+    } else if (determinedExecutablePath) {
+        puppeteerOptions.executablePath = determinedExecutablePath;
         console.log(`[PAIRING_INIT ${phoneNumber}] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
     } else {
-        console.log(`[PAIRING_INIT ${phoneNumber}] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search.`);
+        console.log(`[PAIRING_INIT ${phoneNumber}] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search (might fail if system Chrome not found).`);
     }
     console.log(`[PAIRING_INIT ${phoneNumber}] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
 

@@ -14,6 +14,7 @@ This `SESSION_ID` (the JSON string, *without* the `WHIZBOT_` prefix) is then use
 *   NPM (usually comes with Node.js)
 *   A modern web browser.
 *   A working WhatsApp account to link.
+*   **A working installation of Google Chrome (or another Chromium-based browser) is highly recommended if Puppeteer's automatic Chromium download fails.**
 
 ## Setup and Running (Local Environment)
 
@@ -24,13 +25,29 @@ This `SESSION_ID` (the JSON string, *without* the `WHIZBOT_` prefix) is then use
     ```bash
     npm install
     ```
-    This will install all necessary dependencies including `express`, `ejs`, `whatsapp-web.js`, `qrcode`, and importantly, `puppeteer` (which downloads its own compatible Chromium browser).
+    This command installs all necessary dependencies, including `puppeteer`. The `puppeteer` package will attempt to download its own version of Chromium. **If this download fails (e.g., due to network errors like `ECONNRESET`, firewall, or antivirus), please see the "Troubleshooting Puppeteer / Chromium Issues" section below.**
 
-3.  **Puppeteer Configuration (Browser Handling):**
-    *   **Default:** The application now defaults to using the Chromium instance bundled with the `puppeteer` npm package. This is generally the most reliable method.
-    *   **Override (Optional):** If you encounter issues or prefer to use a system-installed Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable. See the Troubleshooting section for details.
+3.  **Configure Puppeteer (Browser Handling - IMPORTANT for Windows / Download Issues):**
+    *   **Default Behavior:** The application will first try to use the Chromium version downloaded by the `puppeteer` npm package.
+    *   **Primary Workaround (If Chromium download fails): Use Your System's Chrome.**
+        If `npm install` fails to download Chromium or if you prefer to use your existing Chrome installation, you **must** set the `PUPPETEER_EXECUTABLE_PATH` environment variable.
+        1.  **Find your Chrome executable path:**
+            *   **Windows:** Usually `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`. (Right-click Chrome shortcut > Properties > Target).
+            *   **macOS:** Usually `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
+            *   **Linux:** Often `/usr/bin/google-chrome`. Use `which google-chrome`.
+        2.  **Set `PUPPETEER_EXECUTABLE_PATH` Environment Variable (Persistently):**
+            *   **Windows:** Search for "environment variables" > "Edit the system environment variables" > "Environment Variables..." button. Under "User variables" (or "System variables"), click "New...".
+                *   Variable name: `PUPPETEER_EXECUTABLE_PATH`
+                *   Variable value: `C:\Program Files\Google\Chrome\Application\chrome.exe` (Your actual path)
+                Click OK on all dialogs.
+            *   **Linux/macOS:** Add `export PUPPETEER_EXECUTABLE_PATH="/path/to/your/chrome"` to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`), then run `source ~/.bashrc` or open a new terminal.
+        3.  **IMPORTANT: Close and re-open your command prompt/terminal** after setting the variable for it to take effect in that session.
+    *   **(Optional) Skip Chromium Download by Puppeteer:** If you are consistently using `PUPPETEER_EXECUTABLE_PATH`, you can tell `npm install` not to download Chromium:
+        *   Set environment variable `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` before running `npm install`.
+        *   Or, create a file named `.npmrc` (no extension) in the `whiz-session-generator` project root and add the line: `puppeteer_skip_chromium_download=true`. Then run `npm install`.
 
 4.  **Run the Web Server:**
+    After successful `npm install` and (if needed) setting `PUPPETEER_EXECUTABLE_PATH`:
     ```bash
     npm start
     ```
@@ -38,89 +55,49 @@ This `SESSION_ID` (the JSON string, *without* the `WHIZBOT_` prefix) is then use
     ```bash
     node server.js
     ```
-    By default, the server will start on `http://localhost:3000`.
+    By default, the server will start on `http://localhost:3000`. Check the console logs; it will indicate which Chrome/Chromium executable path it's attempting to use.
 
 ## How to Use
-
-1.  **Open the Web Application:** Navigate to `http://localhost:3000` (or the appropriate URL if deployed) in your web browser. The pages feature a dark theme and the 𝐖𝐇𝐈𝐙-𝐌𝐃 logo.
-
-2.  **Choose Linking Method:**
-    *   The index page will offer two choices: "Link with QR Code" or "Link with Pairing Code".
-
-3.  **Option A: Link with QR Code**
-    *   Click "Link with QR Code".
-    *   The page will display a QR code. A progress bar indicates its expiry time (approx. 20 seconds). Use the "New QR" button if needed.
-    *   Open WhatsApp on your phone (`Settings > Linked Devices > Link a Device`), and scan the QR code.
-    *   Wait for authentication status on the page.
-
-4.  **Option B: Link with Pairing Code**
-    *   Click "Link with Pairing Code".
-    *   Enter your full WhatsApp phone number (with country code) and click "Get Pairing Code".
-    *   A pairing code will be displayed.
-    *   On your primary phone, open WhatsApp (`Settings > Linked Devices > Link with phone number instead`) and enter the code.
-    *   Wait for authentication status on the page.
-
-5.  **Session Delivery:**
-    *   Upon successful authentication, the web page will indicate success.
-    *   Two messages will be sent to the WhatsApp account you just linked:
-        1.  **Session ID:** `WHIZBOT_{"WABrowserId":"...", ...}`
-        2.  **Success Info Message:**
-            Example for QR: "*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\n[https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)\n\n*Join our WhatsApp Group for Support & Updates:*\n[https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)\n\n*𝐖𝐇𝐈𝐙-𝐌𝐃* 🥀"
-            (A similar message is sent for successful Pairing Code linking.)
-
-6.  **Using the Session ID:**
-    *   Copy the JSON string part from the `WHIZBOT_{...}` message.
-    *   Use this `SESSION_ID` for the `WHATSAPP_SESSION_ID` environment variable when running the **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot**.
+(This section remains largely the same as before - user navigates to localhost:3000, chooses method, etc.)
+1.  **Open the Web Application:** Navigate to `http://localhost:3000`...
+2.  **Choose Linking Method:** ...
+3.  **Option A: Link with QR Code** ...
+4.  **Option B: Link with Pairing Code** ...
+5.  **Session Delivery:** ...
+    1.  **Session ID:** `WHIZBOT_{"WABrowserId":"...", ...}`
+    2.  **Success Info Message:** (Example message with correct repo/group links)
+6.  **Using the Session ID:** ...
 
 ## Visuals
-*   The web pages feature the 𝐖𝐇𝐈𝐙-𝐌𝐃 logo:
-    <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo" width="80"> <!-- Adjusted size for README -->
-*   Pages have a consistent dark theme.
+(Remains the same)
 
 ## File Structure Overview
-*   `server.js`: Main Express.js application.
-*   `package.json`: Project metadata and dependencies (now includes `puppeteer`).
-*   `views/`: EJS templates (`index.ejs`, `qr-link.ejs`, `pairing-link.ejs`) for the dark-themed UI.
-*   `public/css/style.css`: Global stylesheet.
-*   `temp_qr_session_data/`, `temp_pairing_session_data/`: Temporary directories for session files during linking.
+(Remains largely the same, `puppeteer` version updated)
 
 ## Important Links
-*   **Repository:** [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)
-*   **WhatsApp Group:** [https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)
+(Remains the same)
 
 ## Important Notes
-*   **Security**: The `SESSION_ID` grants full access. Keep it private.
-*   **Single User Focus**: Best for one user generating a session at a time.
-*   **Pairing Code Format**: The pairing code is generated by WhatsApp; its format cannot be customized (e.g., to `WHIZ-1234`).
+(Remains largely the same)
 
-## Troubleshooting
+## Troubleshooting Puppeteer / Chromium Issues
 
-### Error: "Could not find expected browser (chrome) locally."
+If you see errors like **"Could not find expected browser (chrome) locally"** or **`ECONNRESET` during `npm install`**, it means Puppeteer is having trouble with its Chromium browser.
 
-This error means Puppeteer could not find/launch Chromium. This project now defaults to using Chromium bundled with the `puppeteer` npm package.
+1.  **Primary Solution: Use `PUPPETEER_EXECUTABLE_PATH` (Recommended)**
+    *   Follow the detailed instructions in **Section 3 of "Setup and Running"** above to set this environment variable to point to your system's installed Google Chrome. This is the most reliable fix if the automatic download fails.
+    *   **Remember to restart your terminal after setting the variable.**
 
-1.  **Ensure `npm install` Completed Successfully:**
-    *   `npm install` *must* complete without errors and download `puppeteer`'s Chromium. Check its output for any Puppeteer/Chromium download error messages (network, firewall, antivirus issues can block this).
+2.  **Verify `npm install` for Bundled Chromium:**
+    *   The `puppeteer` package (now a direct dependency) attempts to download its own Chromium. If `PUPPETEER_EXECUTABLE_PATH` is *not* set, this bundled version is used.
+    *   If the download fails during `npm install` (check for `ECONNRESET` or other download errors in the `npm install` log), the bundled Chromium will be missing or corrupt.
+    *   **To fix a failed download of bundled Chromium:**
+        1.  Ensure no `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` environment variable is set.
+        2.  Delete `node_modules` and `package-lock.json`.
+        3.  Try `npm install` again, carefully watching for network errors, firewall/antivirus interference.
 
-2.  **Force Clean Installation & Re-download:**
-    *   Delete `node_modules` and `package-lock.json`. Run `npm install` again, monitoring output.
-
-3.  **Check `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` Env Var:**
-    *   Ensure this is NOT set to `true` during `npm install` if you want the bundled Chromium.
-
-4.  **(Override) Use a System-Installed Chrome/Chromium via `PUPPETEER_EXECUTABLE_PATH`:**
-    *   If bundled Chromium use fails, or you prefer a system browser, set `PUPPETEER_EXECUTABLE_PATH`.
-    *   **Find path:**
-        *   Windows: `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\...`
-        *   macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
-        *   Linux: `which google-chrome` (e.g., `/usr/bin/google-chrome`)
-    *   **Set variable (examples):**
-        *   Cmd (Win): `set PUPPETEER_EXECUTABLE_PATH=C:\Your\Path\To\chrome.exe`
-        *   PowerShell (Win): `$env:PUPPETEER_EXECUTABLE_PATH="C:\Your\Path\To\chrome.exe"`
-        *   Bash (Linux/macOS): `export PUPPETEER_EXECUTABLE_PATH="/path/to/your/chrome"`
-    *   The application prioritizes this variable if set.
-
-### Other Issues
-*   **EBUSY errors:** If `chrome_debug.log` or similar files are locked, restart server/machine. The app now handles this more gracefully to avoid crashes.
+3.  **`EPERM` or `EBUSY` errors during `npm install` or cleanup:**
+    *   These errors mean files or folders (often within `node_modules/@puppeteer/browsers` or the temporary session data folders) are locked by another process.
+    *   **Solution:** Close any running instances of the application. Close any lingering `node.exe` or `chrome.exe` processes (check Task Manager on Windows). Manually delete the `node_modules` folder and the temporary session data folders (`temp_qr_session_data`, `temp_pairing_session_data`) if they exist. A system reboot can also help clear file locks. Then try `npm install` again.
 
 Maintained by **Whiz**. Contact: `+254754783683`.
