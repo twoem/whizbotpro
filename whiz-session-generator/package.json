@@ -15,7 +15,7 @@
     "pairing-code",
     "web"
   ],
-  "author": "Jules AI",
+  "author": "Whiz",
   "license": "ISC",
   "dependencies": {
     "whatsapp-web.js": "^1.23.0",

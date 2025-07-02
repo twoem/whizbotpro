@@ -1,46 +1,54 @@
-# Whiz Pro Bot
+# 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot
 
-Whiz Pro Bot is a WhatsApp bot built with Node.js and `whatsapp-web.js`. It offers a range of automation and utility features for your WhatsApp account.
+𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and `whatsapp-web.js`. It offers a range of automation and utility features for your WhatsApp account, along with a web interface to view live bot logs.
 
 ## Features
 
 1.  **Save View Once Media (`!vv` command)**: Reply to any view-once message (image or video) with the command `!vv`. The bot will download the media and send it back to you, effectively saving it.
 2.  **Auto View Status**: Automatically marks status updates from your contacts as viewed.
 3.  **Auto Like Status**: Automatically reacts with a '🔥' emoji to new status updates from your contacts.
-4.  **Contact Link (`!contact` command)**: Use the command `!contact` to receive a WhatsApp contact link for the bot admin/developer.
-5.  **Bot Menu (`!menu` command)**: Use the command `!menu` to display a list of all available commands and features.
-6.  **Startup Notification**: When the bot successfully starts and connects to your WhatsApp, it sends a notification message to your own number, including a greeting, repository link, and its current uptime.
+4.  **Contact Link (`!contact` command)**: Use the command `!contact` to receive contact information for "Whiz" (`+254754783683`) and a link to the community WhatsApp group.
+5.  **Bot Menu (`!menu` command)**: Use the command `!menu` to display a list of all available commands, features, repository link, and group link.
+6.  **Startup Notification**: When the bot successfully starts and connects to your WhatsApp, it sends a notification message to your own number, including a greeting, your WhatsApp profile name, the official repository link, the community group link, and its current uptime.
+7.  **Web Log Viewer**: A built-in web server provides a page (typically at `http://localhost:3001/bot-log`) to view live operational logs from the bot, including status updates, errors, and processed commands.
 
 ## Prerequisites
 
 *   Node.js (v16 or higher recommended)
 *   NPM (usually comes with Node.js)
 *   A working WhatsApp account.
-*   A `SESSION_ID` obtained from the web-based `whiz-session-generator` tool. This ID is a JSON string.
+*   A `SESSION_ID` obtained from the web-based **𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator** tool. This ID is a JSON string.
 
 ## Setup and Running
 
-1.  **Clone the repository (or create the files as provided by Jules AI).**
+1.  **Clone the repository (or ensure all files are present if provided by Whiz/Jules AI).**
+    *   The main directory for the bot is conceptually named `whiz-md-bot/`.
 
 2.  **Install Dependencies:**
-    Open a terminal in the `whiz-pro-bot` directory and run:
+    Open a terminal in the `whiz-md-bot/` directory and run:
     ```bash
     npm install
     ```
-    This will install `whatsapp-web.js`, `qrcode-terminal` (though not directly used for QR scanning by this bot if a session is provided), and any other dependencies that might be listed in `package.json`. If `package.json` is minimal, you might need:
-    ```bash
-    npm install whatsapp-web.js
-    ```
+    This will install all necessary dependencies including `whatsapp-web.js`, `puppeteer` (which downloads its own Chromium), `express`, `ejs`, and `dotenv`.
 
-3.  **Set Environment Variables:**
-    The bot requires a `WHATSAPP_SESSION_ID` environment variable. This is the JSON string captured by the `whiz-session-generator` (ensure you use the string *without* the `WHIZBOT_` prefix).
-    You can set this variable in your terminal before running the bot:
-    ```bash
-    export WHATSAPP_SESSION_ID='your_long_session_json_string_here'
-    ```
-    Alternatively, you can use a `.env` file with a library like `dotenv` (you would need to add `require('dotenv').config();` at the start of `index.js` and install `dotenv` via npm).
+3.  **Configure Environment Variables:**
+    *   Copy the `.env.example` file to a new file named `.env` in the bot's root directory:
+        ```bash
+        cp .env.example .env
+        ```
+    *   Open the `.env` file and add your `WHATSAPP_SESSION_ID` (the JSON string obtained from the 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator, *without* the `WHIZBOT_` prefix).
+        ```env
+        WHATSAPP_SESSION_ID="your_long_session_json_string_here"
+        # Optional: Set a different port for the bot's web log viewer
+        # BOT_WEB_PORT=3001
+        ```
+    *   **Important:** Add `.env` to your `.gitignore` file to avoid committing your session ID.
 
-4.  **Run the Bot:**
+4.  **Puppeteer Configuration (Browser Handling):**
+    *   By default, the bot uses the version of Chromium that comes bundled with the `puppeteer` npm package. This is generally the most reliable option.
+    *   **Override (Optional):** If you need to use a specific system-installed version of Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable to its full path before running the bot. See the 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator's README for examples on how to set this.
+
+5.  **Run the Bot:**
     ```bash
     npm start
     ```
@@ -48,25 +56,35 @@ Whiz Pro Bot is a WhatsApp bot built with Node.js and `whatsapp-web.js`. It offe
     ```bash
     node index.js
     ```
+    The bot will start, and you should see logs in your console. The web log viewer will also be available (default: `http://localhost:3001/bot-log`).
 
 ## How it Works
 
-*   **Session Management**: The bot uses the `LocalAuth` strategy from `whatsapp-web.js`. When a `WHATSAPP_SESSION_ID` is provided via the environment variable, the bot writes this session data to a local file (`session_data/session-WHIZ_PRO_BOT.json`). `LocalAuth` then uses this file to restore the WhatsApp session, avoiding the need for QR code scanning on each startup.
-*   **Command Handling**: The bot listens for specific commands in messages (e.g., `!vv`, `!contact`, `!menu`) and processes them accordingly.
-*   **Status Automation**: It monitors status updates from contacts to automatically view them and react with an emoji.
+*   **Session Management**: Uses `LocalAuth` with the `WHATSAPP_SESSION_ID` from your `.env` file to restore the WhatsApp session, avoiding QR scans on each startup.
+*   **Puppeteer**: Relies on Puppeteer for browser automation. The project now includes `puppeteer` as a direct dependency to manage its own Chromium version, enhancing stability.
+*   **Web Log Viewer**: An integrated Express.js server collects important logs and serves them on a web page for real-time monitoring.
+*   **Command Handling**: Listens for commands (`!vv`, `!contact`, `!menu`) and processes them.
+*   **Status Automation**: Monitors and interacts with contact status updates.
 
-## File Structure
+## File Structure (Conceptual: `whiz-md-bot/`)
 
-*   `index.js`: The main application file containing all bot logic.
+*   `index.js`: Main application logic for the bot and the web log server.
 *   `package.json`: Project metadata and dependencies.
-*   `session_data/`: Directory created by `LocalAuth` to store session files.
-*   `view_once_saved_media/`: Directory previously used for automatic view-once saving. While the directory might still be created by older code paths if not fully removed, the `!vv` command sends media directly to the user, not this folder. (This can be cleaned up).
+*   `.env.example`: Template for environment variables.
+*   `session_data/`: Directory for `LocalAuth` session files.
+*   `bot_views/log.ejs`: EJS template for the web log page.
+*   `bot_public/css/bot_style.css`: Stylesheet for the web log page.
 *   `README.md`: This file.
+
+## Important Links
+
+*   **Repository:** [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)
+*   **WhatsApp Group:** [https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)
 
 ## Important Notes
 
-*   **WhatsApp Terms of Service**: Using automated systems like this bot can be against WhatsApp's Terms of Service. Use responsibly and at your own risk. Excessive automated actions might lead to your number being flagged or banned.
-*   **Error Handling**: The bot includes basic error handling. For production use, more robust error management and logging would be beneficial.
-*   **Headless Environment**: Puppeteer arguments in `index.js` are configured for running in a headless Linux environment. If you are on a different OS or encounter Puppeteer issues, you might need to adjust these or install additional system dependencies (like Chrome/Chromium).
+*   **WhatsApp Terms of Service**: Use responsibly. Automation can be against ToS.
+*   **Security**: Keep your `.env` file (with `WHATSAPP_SESSION_ID`) secure and private.
+*   **Error Handling**: The bot includes improved logging. Check console and the web log viewer for errors.
 
-This bot was created by Jules, your AI Software Engineer.
+Maintained by **Whiz**. Contact: `+254754783683`.

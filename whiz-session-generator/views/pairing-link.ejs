@@ -3,8 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title><%= title %> - 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator</title>
+    <link rel="stylesheet" href="/css/style.css"> <!-- Main stylesheet -->
+    <style>
+        /* Page-specific enhancements for pairing-link */
+        body {
+            justify-content: flex-start; /* Align container to top */
+            padding-top: 30px;
+        }
+        .container {
+            max-width: 450px; /* Slightly wider for form and code display */
+        }
+        .logo-container img {
+            max-width: 80px;
+        }
+        h2 {
+            font-size: 1.6em;
+            color: #00aaff; /* Accent color for heading */
+            margin-bottom: 10px;
+        }
+        p.instructions-main {
+            font-size: 0.95em;
+            color: #bbbbbb;
+            margin-bottom: 20px;
+        }
+        #pairing-form {
+            margin-bottom: 20px;
+        }
+        /* Input and button styles are largely covered by global style.css */
+        /* #pairing-form input[type="tel"] {} - Covered by global */
+        /* #pairing-form button {} - Covered by global */
+
+        #pairing-code-display {
+            border: 2px solid #00aaff; /* Accent border to match QR page */
+            color: #00e676; /* Bright color for the code itself */
+            /* Other properties like font-size, padding, etc., from global style.css */
+        }
+        #pairing-code-display.hidden { /* Ensure this works with global */
+            display: none;
+        }
+
+        .instructions { /* For the instructions below the code */
+            font-size: 0.9em;
+            color: #999999;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .instructions.hidden {
+             display: none;
+        }
+
+        #status-message {
+            font-size: 1em;
+            min-height: 1.5em;
+            margin-bottom: 20px;
+        }
+        #status-message.success { /* For successful authentication */
+            color: #00e676;
+        }
+        #status-message.error { /* For error messages */
+            color: #ff5252;
+        }
+        .button-container { /* If multiple buttons like reset and home */
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto 20px auto;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,27 +80,34 @@
             <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo">
         </div>
         <h2><%= title %></h2>
-        <p>Enter your phone number with country code (e.g., +14155552671) to receive a pairing code.</p>
+        <p class="instructions-main">Enter your WhatsApp phone number (with country code, e.g., +1415...) to link with 𝐖𝐇𝐈𝐙-𝐌𝐃.</p>
 
         <form id="pairing-form">
             <div>
                 <label for="phoneNumber">Phone Number:</label>
                 <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="e.g., +12345678900" required>
             </div>
-            <button type="submit" id="submitPhoneBtn" class="button-secondary">Get Pairing Code</button>
-            <button type="button" id="reset-pairing-button" class="button-warning" style="display:none;">Reset/Try New Number</button>
+            <div class="button-container" style="justify-content: center; margin-top:15px;"> <!-- Centering single button initially -->
+                 <button type="submit" id="submitPhoneBtn" class="button-secondary">Get Pairing Code</button>
+            </div>
+             <button type="button" id="reset-pairing-button" class="button-warning" style="display:none; margin-top: 10px;">Reset / New Number</button>
         </form>
 
         <div id="pairing-code-display" class="hidden">
             <!-- Pairing code will appear here -->
         </div>
         <p class="instructions hidden" id="pairing-instructions">
-            Once the code appears, go to WhatsApp on your primary phone:
-            Settings > Linked Devices > Link with phone number instead. Enter the code there.
+            Once the code appears, go to WhatsApp on your primary phone, navigate to:
+            Settings > Linked Devices > "Link with phone number instead". Enter the code there.
         </p>
 
         <div id="status-message">Enter your phone number to begin.</div>
-        <a href="/" class="button-link home-link">Back to Home</a>
+        <div class="button-container" style="margin-top: 10px;">
+            <a href="/" class="button-link home-link">Home</a>
+        </div>
+        <footer>
+            <p>&copy; 𝐖𝐇𝐈𝐙-𝐌𝐃 - Maintained by Whiz</p>
+        </footer>
     </div>
 
     <script>
@@ -49,6 +124,7 @@
 
         async function requestNewPairingSession() {
             statusMessage.textContent = 'Resetting pairing session...';
+            statusMessage.className = '';
             submitPhoneBtn.disabled = true;
             resetPairingButton.style.display = 'none';
             try {
@@ -64,8 +140,11 @@
             } catch (error) {
                 console.error('Error resetting pairing session:', error);
                 statusMessage.textContent = 'Error resetting session.';
+                statusMessage.className = 'error';
             } finally {
                 submitPhoneBtn.disabled = false;
+                 // Hide reset button again until a number is submitted
+                document.querySelector('.button-container').style.justifyContent = 'center'; // Re-center main button
             }
         }
 
@@ -74,13 +153,16 @@
             const phoneNumber = phoneNumberInput.value;
             if (!phoneNumber) {
                 statusMessage.textContent = 'Please enter a valid phone number.';
+                statusMessage.className = 'error';
                 return;
             }
 
             submitPhoneBtn.disabled = true;
-            phoneNumberInput.disabled = true; // Disable input during request
+            phoneNumberInput.disabled = true;
             resetPairingButton.style.display = 'inline-block';
+            document.querySelector('.button-container').style.justifyContent = 'space-around'; // Adjust for two buttons
             statusMessage.textContent = 'Requesting pairing code... Please wait.';
+            statusMessage.className = '';
             pairingCodeDisplay.classList.add('hidden');
             pairingCodeDisplay.textContent = '';
             pairingInstructions.classList.add('hidden');
@@ -101,17 +183,25 @@
                         pairingInstructions.classList.remove('hidden');
                         statusMessage.textContent = "Pairing code received. Enter it on your phone.";
                     }
-                    startPollingAuthStatus(); // Start polling for authentication
+                     if (data.status === 'code_issued' || data.pairingCode) { // Start polling if code is issued or processing might lead to it
+                        startPollingAuthStatus();
+                    }
                 } else {
                     statusMessage.textContent = `Error: ${data.message || 'Failed to request pairing code.'}`;
+                    statusMessage.className = 'error';
                     submitPhoneBtn.disabled = false;
                     phoneNumberInput.disabled = false;
+                    resetPairingButton.style.display = 'none'; // Hide if request failed early
+                    document.querySelector('.button-container').style.justifyContent = 'center';
                 }
             } catch (error) {
                 console.error('Error submitting phone number:', error);
                 statusMessage.textContent = 'Network error. Please try again.';
+                statusMessage.className = 'error';
                 submitPhoneBtn.disabled = false;
                 phoneNumberInput.disabled = false;
+                resetPairingButton.style.display = 'none';
+                document.querySelector('.button-container').style.justifyContent = 'center';
             }
         });
 
@@ -120,59 +210,62 @@
         function startPollingAuthStatus() {
             if (isPollingAuthStatus) return;
             isPollingAuthStatus = true;
-            clearInterval(authStatusInterval); // Clear any existing interval
+            clearInterval(authStatusInterval);
 
             authStatusInterval = setInterval(async () => {
                 try {
                     const response = await fetch('/api/pairing-auth-status');
                     const data = await response.json();
 
-                    statusMessage.textContent = data.message || 'Checking status...';
+                    // Update status message based on response, avoid overwriting critical error/success states too quickly
+                    if (data.status !== 'authenticated' && data.status !== 'error') {
+                        statusMessage.textContent = data.message || 'Checking status...';
+                        statusMessage.className = '';
+                    }
+
 
                     if (data.status === 'authenticated') {
-                        statusMessage.textContent = 'Authenticated successfully! Session is being processed.';
-                        pairingCodeDisplay.textContent = '✓';
-                        pairingCodeDisplay.style.borderColor = '#2ecc71';
+                        statusMessage.textContent = data.message || 'Authenticated successfully! Check WhatsApp for session messages.';
+                        statusMessage.className = data.message && data.message.toLowerCase().includes('failed') ? 'error' : 'success';
+                        pairingCodeDisplay.textContent = '✓ Authenticated';
+                        pairingCodeDisplay.style.borderColor = '#2ecc71'; // Green border
                         pairingInstructions.classList.add('hidden');
                         clearInterval(authStatusInterval);
                         isPollingAuthStatus = false;
                         submitPhoneBtn.disabled = true;
-                        resetPairingButton.style.display = 'none';
-                        // TODO: Redirect or further instructions based on Step 5
-                        // setTimeout(() => { window.location.href = '/success-page'; }, 3000);
+                        resetPairingButton.disabled = true; // Disable reset too on final success
+                        resetPairingButton.style.display = 'inline-block'; // Keep it visible but disabled
                     } else if (data.status === 'error') {
                         statusMessage.textContent = `Error: ${data.message}`;
+                        statusMessage.className = 'error';
                         clearInterval(authStatusInterval);
                         isPollingAuthStatus = false;
-                        submitPhoneBtn.disabled = false; // Allow retry
+                        submitPhoneBtn.disabled = false;
                         phoneNumberInput.disabled = false;
                         pairingCodeDisplay.classList.add('hidden');
+                         resetPairingButton.style.display = 'inline-block'; // Allow reset on error
                     } else if (data.status === 'code_issued' && data.pairingCode) {
                         if (pairingCodeDisplay.textContent !== data.pairingCode) {
                              pairingCodeDisplay.textContent = data.pairingCode;
                         }
                         pairingCodeDisplay.classList.remove('hidden');
                         pairingInstructions.classList.remove('hidden');
-                        statusMessage.textContent = "Pairing code issued. Enter it on your phone.";
+                        // Status message already set or will be by next poll if still just "code_issued"
                     } else if (data.status === 'idle' && !phoneNumberInput.disabled) {
-                        // Means server reset or initial state, stop polling if form is active
                         clearInterval(authStatusInterval);
                         isPollingAuthStatus = false;
                     }
-
                 } catch (error) {
                     console.error('Error polling auth status:', error);
                     statusMessage.textContent = 'Error checking status. Retrying...';
-                    // Keep polling on network errors, or clear interval if too many errors
+                    statusMessage.className = 'error';
                 }
-            }, 5000); // Poll every 5 seconds
+            }, 5000);
         }
 
-        // Clean up interval on page unload
         window.addEventListener('beforeunload', () => {
             clearInterval(authStatusInterval);
         });
-
     </script>
 </body>
 </html>

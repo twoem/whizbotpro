@@ -1,12 +1,12 @@
-# Whiz Session Generator (Web Application)
+# 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator (Web Application)
 
-This tool is a web application used to generate a WhatsApp `SESSION_ID` for the `Whiz Pro Bot`. It guides you through linking a new device to your WhatsApp account using either a QR code or a phone number pairing code. The linked device will be associated with the session generated.
+This web application generates a WhatsApp `SESSION_ID` for the **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot**. It guides you through linking a new device to your WhatsApp account using either a QR code or a phone number pairing code, with a user interface inspired by modern web QR linking pages (e.g., `SuhailTechInfo/web-qr`).
 
 Once linked, the tool captures the session information and sends it as two messages to your own WhatsApp number:
 1.  The Session ID string, prefixed with `WHIZBOT_`.
-2.  A success confirmation message with a link to the project repository.
+2.  A success confirmation message including links to the official repository and community WhatsApp group.
 
-This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used by the `Whiz Pro Bot` to operate without needing to scan a QR code on every startup.
+This `SESSION_ID` (the JSON string, *without* the `WHIZBOT_` prefix) is then used by the **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot** to operate without needing to scan a QR code on every startup.
 
 ## Prerequisites
 
@@ -24,9 +24,13 @@ This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used 
     ```bash
     npm install
     ```
-    This will install `express`, `ejs`, `whatsapp-web.js`, `qrcode`, and other necessary dependencies.
+    This will install all necessary dependencies including `express`, `ejs`, `whatsapp-web.js`, `qrcode`, and importantly, `puppeteer` (which downloads its own compatible Chromium browser).
 
-3.  **Run the Web Server:**
+3.  **Puppeteer Configuration (Browser Handling):**
+    *   **Default:** The application now defaults to using the Chromium instance bundled with the `puppeteer` npm package. This is generally the most reliable method.
+    *   **Override (Optional):** If you encounter issues or prefer to use a system-installed Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable. See the Troubleshooting section for details.
+
+4.  **Run the Web Server:**
     ```bash
     npm start
     ```
@@ -38,111 +42,85 @@ This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used 
 
 ## How to Use
 
-1.  **Open the Web Application:** Navigate to `http://localhost:3000` (or the appropriate URL if deployed) in your web browser.
+1.  **Open the Web Application:** Navigate to `http://localhost:3000` (or the appropriate URL if deployed) in your web browser. The pages feature a dark theme and the 𝐖𝐇𝐈𝐙-𝐌𝐃 logo.
 
 2.  **Choose Linking Method:**
-    *   The index page will present two options:
-        *   "Link with QR Code"
-        *   "Link with Pairing Code"
+    *   The index page will offer two choices: "Link with QR Code" or "Link with Pairing Code".
 
 3.  **Option A: Link with QR Code**
     *   Click "Link with QR Code".
-    *   A new page will load, attempting to generate and display a QR code.
-    *   A progress bar will indicate the QR code's approximate expiry time (around 20 seconds). The QR code may refresh automatically, or you can use the "Refresh QR Code" button.
-    *   Open WhatsApp on your phone, go to `Settings > Linked Devices > Link a Device`, and scan the QR code shown on the web page.
-    *   Wait for authentication. The status on the page will update.
+    *   The page will display a QR code. A progress bar indicates its expiry time (approx. 20 seconds). Use the "New QR" button if needed.
+    *   Open WhatsApp on your phone (`Settings > Linked Devices > Link a Device`), and scan the QR code.
+    *   Wait for authentication status on the page.
 
 4.  **Option B: Link with Pairing Code**
     *   Click "Link with Pairing Code".
-    *   Enter your full WhatsApp phone number (including country code, e.g., `+14155552671`) in the input field and click "Get Pairing Code".
-    *   A pairing code (usually 8 characters) will be displayed on the web page.
-    *   On your primary phone, open WhatsApp and go to `Settings > Linked Devices > Link with phone number instead`.
-    *   Enter the pairing code displayed on the web page into your WhatsApp.
-    *   Wait for authentication. The status on the page will update.
+    *   Enter your full WhatsApp phone number (with country code) and click "Get Pairing Code".
+    *   A pairing code will be displayed.
+    *   On your primary phone, open WhatsApp (`Settings > Linked Devices > Link with phone number instead`) and enter the code.
+    *   Wait for authentication status on the page.
 
 5.  **Session Delivery:**
-    *   Upon successful authentication (via either method), the web page will indicate success.
-    *   The system will then send two messages to the WhatsApp account you just linked:
-        1.  **Session ID Message:** Starts with `WHIZBOT_` followed by the actual session JSON string.
-            Example: `WHIZBOT_{"WABrowserId":"...", ...}`
-        2.  **Success Info Message:** Confirms linking and provides a GitHub repository link.
-            Example for QR: "*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀"
-            Example for Pairing Code: "*SUCCESS PAIRING CODE WAS CORRECT* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀"
+    *   Upon successful authentication, the web page will indicate success.
+    *   Two messages will be sent to the WhatsApp account you just linked:
+        1.  **Session ID:** `WHIZBOT_{"WABrowserId":"...", ...}`
+        2.  **Success Info Message:**
+            Example for QR: "*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\n[https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)\n\n*Join our WhatsApp Group for Support & Updates:*\n[https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)\n\n*𝐖𝐇𝐈𝐙-𝐌𝐃* 🥀"
+            (A similar message is sent for successful Pairing Code linking.)
 
 6.  **Using the Session ID:**
-    *   Copy the JSON string part from the `WHIZBOT_{...}` message (i.e., everything *after* `WHIZBOT_`). This is your `SESSION_ID`.
-    *   Use this `SESSION_ID` to set the `WHATSAPP_SESSION_ID` environment variable when running the `Whiz Pro Bot`.
+    *   Copy the JSON string part from the `WHIZBOT_{...}` message.
+    *   Use this `SESSION_ID` for the `WHATSAPP_SESSION_ID` environment variable when running the **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot**.
 
 ## Visuals
-*   The web pages feature the Whiz Bot logo:
-    <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo" width="100">
-*   Pages have a consistent dark theme background.
+*   The web pages feature the 𝐖𝐇𝐈𝐙-𝐌𝐃 logo:
+    <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo" width="80"> <!-- Adjusted size for README -->
+*   Pages have a consistent dark theme.
 
 ## File Structure Overview
+*   `server.js`: Main Express.js application.
+*   `package.json`: Project metadata and dependencies (now includes `puppeteer`).
+*   `views/`: EJS templates (`index.ejs`, `qr-link.ejs`, `pairing-link.ejs`) for the dark-themed UI.
+*   `public/css/style.css`: Global stylesheet.
+*   `temp_qr_session_data/`, `temp_pairing_session_data/`: Temporary directories for session files during linking.
 
-*   `server.js`: The main Express.js application file.
-*   `package.json`: Project metadata and dependencies.
-*   `views/`: Contains EJS templates (`index.ejs`, `qr-link.ejs`, `pairing-link.ejs`).
-*   `public/`: Contains static assets:
-    *   `css/style.css`: Global stylesheet.
-    *   `js/script.js`: Placeholder for any future global client-side JS (currently, JS is embedded in EJS files).
-    *   `images/`: Placeholder for local images (logo is currently hotlinked).
-*   `temp_qr_session_data/`, `temp_pairing_session_data/`: Temporary directories created during runtime to store session files. These should be cleaned up by the application, but manual deletion might be needed if the server crashes.
+## Important Links
+*   **Repository:** [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)
+*   **WhatsApp Group:** [https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)
 
 ## Important Notes
-
-*   **Security**: The generated `SESSION_ID` grants full access to your WhatsApp account. **KEEP IT PRIVATE AND SECURE.** Do not share it.
-*   **Single User Focus**: The current backend implementation is simplified and best suited for one user generating a session at a time. Running multiple linking processes concurrently might lead to issues.
-*   **Error Handling**: Basic error handling is implemented. If you encounter persistent issues, check the server console logs.
-*   **Headless Environment**: Puppeteer arguments are configured for a headless Linux environment. Adjustments or additional system dependencies might be needed for other operating systems.
+*   **Security**: The `SESSION_ID` grants full access. Keep it private.
+*   **Single User Focus**: Best for one user generating a session at a time.
+*   **Pairing Code Format**: The pairing code is generated by WhatsApp; its format cannot be customized (e.g., to `WHIZ-1234`).
 
 ## Troubleshooting
 
 ### Error: "Could not find expected browser (chrome) locally."
 
-This error means that Puppeteer (used by `whatsapp-web.js`) could not find or launch a compatible version of Chromium. This project now includes `puppeteer` as a direct dependency, which means `npm install` should download a known-compatible version of Chromium into your `node_modules` folder. The application will attempt to use this version by default.
-
-If you still encounter this error, here's how to troubleshoot:
+This error means Puppeteer could not find/launch Chromium. This project now defaults to using Chromium bundled with the `puppeteer` npm package.
 
 1.  **Ensure `npm install` Completed Successfully:**
-    *   The `npm install` command *must* complete without errors. It's responsible for downloading `puppeteer` and its bundled Chromium.
-    *   Watch the output of `npm install` carefully for any messages related to "Puppeteer" or "Chromium download" failing (e.g., due to network issues, firewalls, antivirus software).
+    *   `npm install` *must* complete without errors and download `puppeteer`'s Chromium. Check its output for any Puppeteer/Chromium download error messages (network, firewall, antivirus issues can block this).
 
-2.  **Force Clean Installation & Re-download of Chromium:**
-    *   If you suspect an incomplete or corrupted download:
-        1.  Delete the `node_modules` folder in your `whiz-session-generator` directory.
-        2.  Delete the `package-lock.json` file (if it exists).
-        3.  Run `npm install` again. Monitor the output closely for Puppeteer's Chromium download progress and success messages.
+2.  **Force Clean Installation & Re-download:**
+    *   Delete `node_modules` and `package-lock.json`. Run `npm install` again, monitoring output.
 
-3.  **Check `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` Environment Variable:**
-    *   Ensure this environment variable is NOT set to `true` (or `1`) when you run `npm install`, as this would explicitly prevent Puppeteer from downloading its bundled Chromium.
+3.  **Check `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` Env Var:**
+    *   Ensure this is NOT set to `true` during `npm install` if you want the bundled Chromium.
 
 4.  **(Override) Use a System-Installed Chrome/Chromium via `PUPPETEER_EXECUTABLE_PATH`:**
-    *   If, for some reason, the Chromium bundled with the `puppeteer` npm package cannot be used or if you prefer to use a specific system-installed version of Chrome/Chromium, you can set the `PUPPETEER_EXECUTABLE_PATH` environment variable.
-    *   The application will prioritize this environment variable if set.
-    *   **Find your Chrome executable path:**
-        *   **Windows:** Usually `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`. You can find it by right-clicking your Chrome shortcut, going to Properties, and looking at the "Target" field.
-        *   **macOS:** Usually `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
-        *   **Linux:** Often `/usr/bin/google-chrome`, `/opt/google/chrome/chrome`, or similar. Use the `which google-chrome` command in your terminal.
-    *   **Set the environment variable:** Before running `npm start` or `node server.js`, set the `PUPPETEER_EXECUTABLE_PATH` environment variable to the full path you found.
-        *   **Windows (Command Prompt):**
-            ```cmd
-            set PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
-            ```
-            (Replace with your actual path. You might need to escape spaces or use quotes if the command interpreter requires it, though often `set` handles spaces well if the path itself is not quoted.)
-            For persistent setting, search for "environment variables" in Windows settings.
-        *   **Windows (PowerShell):**
-            ```powershell
-            $env:PUPPETEER_EXECUTABLE_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
-            ```
-        *   **Linux/macOS (Terminal):**
-            ```bash
-            export PUPPETEER_EXECUTABLE_PATH="/usr/bin/google-chrome"
-            ```
-            (Replace with your actual path.) Add this line to your shell profile (e.g., `.bashrc`, `.zshrc`) for persistence.
-    *   The application will detect this environment variable and use your specified Chrome/Chromium installation.
+    *   If bundled Chromium use fails, or you prefer a system browser, set `PUPPETEER_EXECUTABLE_PATH`.
+    *   **Find path:**
+        *   Windows: `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\...`
+        *   macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+        *   Linux: `which google-chrome` (e.g., `/usr/bin/google-chrome`)
+    *   **Set variable (examples):**
+        *   Cmd (Win): `set PUPPETEER_EXECUTABLE_PATH=C:\Your\Path\To\chrome.exe`
+        *   PowerShell (Win): `$env:PUPPETEER_EXECUTABLE_PATH="C:\Your\Path\To\chrome.exe"`
+        *   Bash (Linux/macOS): `export PUPPETEER_EXECUTABLE_PATH="/path/to/your/chrome"`
+    *   The application prioritizes this variable if set.
 
 ### Other Issues
-*   **EBUSY errors during cleanup:** If you see errors related to files being busy during cleanup (often `chrome_debug.log`), it might mean a previous Puppeteer instance didn't shut down correctly. Restarting the server or even your machine might be necessary in rare cases to clear file locks. The application has been updated to handle these more gracefully to prevent crashes.
+*   **EBUSY errors:** If `chrome_debug.log` or similar files are locked, restart server/machine. The app now handles this more gracefully to avoid crashes.
 
-This tool was created by Jules, your AI Software Engineer.
+Maintained by **Whiz**. Contact: `+254754783683`.

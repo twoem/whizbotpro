@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>𝐖𝐇𝐈𝐙-𝐌𝐃 Bot Logs</title>
+    <link rel="stylesheet" href="/bot-static/css/bot_style.css">
+    <style>
+        /* Additional page-specific styles if needed, or keep all in bot_style.css */
+        #log-container {
+            white-space: pre-wrap; /* Preserve whitespace and newlines from log messages */
+            word-wrap: break-word; /* Break long words to prevent overflow */
+        }
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        .log-timestamp {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WHIZ-MD Bot - Live Logs</h1>
+        <div id="status-header">
+            <p>Status: <span id="bot-status">Connecting...</span></p>
+            <p><small>Logs auto-refresh every 5 seconds. Displaying last <%= typeof MAX_LOG_ENTRIES !== 'undefined' ? MAX_LOG_ENTRIES : 'N/A' %> entries.</small></p>
+        </div>
+        <div id="log-container">
+            <p>Loading logs...</p>
+        </div>
+    </div>
+
+    <script>
+        const logContainer = document.getElementById('log-container');
+        const botStatusSpan = document.getElementById('bot-status');
+        const MAX_LOG_ENTRIES_DISPLAY = 200; // Should match or be less than server-side MAX_LOG_ENTRIES
+
+        function formatTimestamp(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString() + '.' + String(date.getMilliseconds()).padStart(3, '0');
+        }
+
+        async function fetchAndDisplayLogs() {
+            try {
+                const response = await fetch('/bot-api/logs'); // API endpoint to be created
+                if (!response.ok) {
+                    logContainer.innerHTML = `<p class="log-entry log-type-ERROR">Error fetching logs: ${response.statusText}</p>`;
+                    botStatusSpan.textContent = 'Error fetching logs';
+                    return;
+                }
+                const logs = await response.json();
+
+                if (logs.length === 0) {
+                    logContainer.innerHTML = '<p>No logs yet...</p>';
+                } else {
+                    logContainer.innerHTML = logs.map(log => {
+                        // Sanitize message content before rendering as HTML
+                        const sanitizedMessage = log.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        return `<div class="log-entry">` +
+                               `<span class="log-timestamp">[${formatTimestamp(log.timestamp)}]</span> ` +
+                               `<span class="log-type-${log.type}">${log.type}</span>: ` +
+                               `<span>${sanitizedMessage}</span>` +
+                               `</div>`;
+                    }).join('');
+                    // Scroll to the bottom of the log container
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+
+                // Update bot status based on recent logs (simple check)
+                if (logs.some(log => log.message.includes("WhatsApp client is ready!"))) {
+                    botStatusSpan.textContent = 'Running ✅';
+                } else if (logs.some(log => log.type === 'ERROR' || log.message.includes("TIMEOUT"))) {
+                    botStatusSpan.textContent = 'Error ⚠';
+                } else if (logs.some(log => log.message.includes("Initializing WhatsApp client"))) {
+                     botStatusSpan.textContent = 'Initializing...';
+                }
+
+
+            } catch (error) {
+                console.error('Failed to fetch logs:', error);
+                logContainer.innerHTML = `<p class="log-entry log-type-ERROR">Failed to connect to log server: ${error.message}</p>`;
+                botStatusSpan.textContent = 'Connection Error';
+            }
+        }
+
+        // Fetch logs initially and then every 5 seconds
+        fetchAndDisplayLogs();
+        setInterval(fetchAndDisplayLogs, 5000);
+
+        // Add MAX_LOG_ENTRIES to the page from server (this is a bit of a hack without passing it directly)
+        // This is just for display, the real capping is server-side.
+        // Replace with actual value if passed from server to template.
+        const maxLogEntriesElement = document.querySelector('#status-header small');
+        if (maxLogEntriesElement) {
+            maxLogEntriesElement.textContent = maxLogEntriesElement.textContent.replace('<%= MAX_LOG_ENTRIES %>', MAX_LOG_ENTRIES_DISPLAY);
+        }
+
+    </script>
+</body>
+</html>

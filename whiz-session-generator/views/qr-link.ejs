@@ -3,8 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title><%= title %> - 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator</title>
+    <link rel="stylesheet" href="/css/style.css"> <!-- Main stylesheet -->
+    <style>
+        /* Page-specific enhancements for qr-link, building on style.css */
+        body {
+            /* style.css already sets a dark theme, ensure it's what we want */
+            /* background-color: #121212; /* Deeper dark if needed */
+            justify-content: flex-start; /* Align container to top */
+            padding-top: 30px;
+        }
+        .container {
+            max-width: 420px; /* Optimal for QR display and mobile */
+            /* background-color: #1e1e1e; /* Slightly lighter dark for container */
+            /* box-shadow: 0 4px 15px rgba(0,0,0,0.5); */
+        }
+        .logo-container img {
+            max-width: 80px; /* Smaller logo for this page */
+        }
+        h2 {
+            font-size: 1.6em;
+            color: #00aaff; /* Accent color for heading */
+            margin-bottom: 10px;
+        }
+        p.instructions {
+            font-size: 0.95em;
+            color: #bbbbbb;
+            margin-bottom: 20px;
+        }
+        #qr-code-container {
+            border: 2px solid #00aaff; /* Accent border */
+            padding: 20px; /* More padding around QR */
+            min-height: 300px;
+            width: 300px;
+            margin-bottom: 10px; /* Reduced margin from progress bar */
+        }
+        #qr-code-container img { /* Ensure image scales if container is smaller */
+            display: block;
+            margin: auto;
+        }
+        #qr-loading-message {
+            color: #ffffff;
+            font-size: 1.2em;
+        }
+        #progress-bar-container {
+            max-width: 300px; /* Match QR container */
+            height: 8px;
+            background-color: #333; /* Darker track for progress */
+            margin-bottom: 5px; /* Closer to timer message */
+        }
+        #progress-bar {
+            background-color: #00aaff; /* Accent for progress */
+        }
+        #timer-message {
+            font-size: 0.85em;
+            color: #999999;
+            margin-bottom: 20px;
+        }
+        #status-message {
+            font-size: 1em;
+            color: #00e676; /* Green for success/status */
+            min-height: 1.5em;
+            margin-bottom: 20px;
+        }
+        #status-message.error {
+            color: #ff5252; /* Red for error messages */
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-around; /* Space out buttons */
+            align-items: center;
+            width: 100%;
+            max-width: 300px; /* Consistent width with QR */
+            margin: 0 auto 20px auto; /* Centered */
+        }
+
+        /* Ensure button styles from style.css are applied or overridden if needed */
+        #refresh-button, .home-link {
+            padding: 10px 20px; /* Slightly smaller buttons */
+            font-size: 0.9em;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,7 +91,7 @@
             <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo">
         </div>
         <h2><%= title %></h2>
-        <p>Scan the QR code with WhatsApp on your phone.</p>
+        <p class="instructions">Scan this QR code with WhatsApp on your phone to link your account with 𝐖𝐇𝐈𝐙-𝐌𝐃.</p>
 
         <div id="qr-code-container">
             <p id="qr-loading-message">Loading QR Code...</p>
@@ -22,11 +101,17 @@
         <div id="progress-bar-container">
             <div id="progress-bar"></div>
         </div>
-        <small id="timer-message">QR code will refresh periodically.</small>
-        <button id="refresh-button" class="button-secondary">Refresh QR Code</button>
+        <small id="timer-message">Initializing QR code timer...</small>
 
-        <div id="status-message">Connecting...</div>
-        <a href="/" class="button-link home-link">Back to Home</a>
+        <div id="status-message">Connecting to WhatsApp...</div>
+
+        <div class="button-container">
+            <button id="refresh-button" class="button-secondary">New QR</button>
+            <a href="/" class="button-link home-link">Home</a>
+        </div>
+         <footer>
+            <p>&copy; 𝐖𝐇𝐈𝐙-𝐌𝐃 - Maintained by Whiz</p>
+        </footer>
     </div>
 
     <script>
@@ -37,7 +122,7 @@
         const timerMessage = document.getElementById('timer-message');
         const refreshButton = document.getElementById('refresh-button');
 
-        const QR_EXPIRY_SECONDS = 20; // WhatsApp QR codes typically last around 20-30s
+        const QR_EXPIRY_SECONDS = 20;
         let timerInterval;
         let secondsRemaining = QR_EXPIRY_SECONDS;
         let fetchInterval;
@@ -46,41 +131,36 @@
 
         async function fetchNewQrSession() {
             statusMessage.textContent = 'Requesting new QR session...';
+            statusMessage.className = ''; // Reset class
             refreshButton.disabled = true;
             try {
                 const response = await fetch('/api/new-qr-session', { method: 'POST' });
                 const data = await response.json();
-                console.log('New QR Session API response:', data);
                 statusMessage.textContent = data.message || 'Initializing...';
-                currentQrData = null; // Clear old QR
+                currentQrData = null;
                 qrImage.style.display = 'none';
+                qrImage.src = ''; // Clear previous QR
                 qrLoadingMessage.style.display = 'block';
                 qrLoadingMessage.textContent = 'Loading new QR Code...';
-                resetTimer(); // Reset and start polling for the new QR
-                fetchQrCode(); // Start fetching immediately
+                resetTimer();
+                fetchQrCode();
             } catch (error) {
                 console.error('Error requesting new QR session:', error);
                 statusMessage.textContent = 'Error requesting new QR. Try refreshing page.';
+                statusMessage.className = 'error';
             } finally {
-                setTimeout(() => { refreshButton.disabled = false; }, 3000); // Re-enable after a delay
+                setTimeout(() => { refreshButton.disabled = false; }, 2000);
             }
         }
 
         function updateProgressBar() {
-            const percentage = (secondsRemaining / QR_EXPIRY_SECONDS) * 100;
+            const percentage = Math.max(0, (secondsRemaining / QR_EXPIRY_SECONDS) * 100);
             progressBar.style.width = percentage + '%';
-            timerMessage.textContent = `QR expires in ${secondsRemaining}s.`;
-
-            if (secondsRemaining <= 0) {
-                timerMessage.textContent = 'QR code expired. Requesting new one...';
-                // Don't fetchNewQrSession directly here, let the polling logic handle it
-                // or explicitly call fetchNewQrSession if desired for immediate refresh.
-                // For now, the poll will see no QR and then it will try to get a new one via refresh button.
-            }
+            timerMessage.textContent = `QR expires in ${Math.max(0, secondsRemaining)}s.`;
         }
 
         function startTimer() {
-            clearInterval(timerInterval); // Clear existing timer
+            clearInterval(timerInterval);
             secondsRemaining = QR_EXPIRY_SECONDS;
             updateProgressBar();
             timerInterval = setInterval(() => {
@@ -88,10 +168,10 @@
                 updateProgressBar();
                 if (secondsRemaining < 0) {
                     clearInterval(timerInterval);
-                    // Optionally auto-trigger refresh here, or rely on user click / next poll
-                     if (currentQrData) { // Only if a QR was active
-                        statusMessage.textContent = 'QR Expired. Click Refresh or wait for auto-update.';
-                        // fetchNewQrSession(); // Example: auto-refresh
+                    if (currentQrData) {
+                        statusMessage.textContent = 'QR Expired. Click "New QR" or wait for auto-update.';
+                        statusMessage.className = 'error'; // Indicate expiry as a type of issue
+                        // Optionally auto-trigger: fetchNewQrSession();
                     }
                 }
             }, 1000);
@@ -101,7 +181,7 @@
             clearInterval(timerInterval);
             secondsRemaining = QR_EXPIRY_SECONDS;
             progressBar.style.width = '100%';
-            timerMessage.textContent = `QR code will refresh periodically.`;
+            timerMessage.textContent = `Initializing QR code timer...`;
         }
 
         async function fetchQrCode() {
@@ -113,61 +193,62 @@
                 const data = await response.json();
 
                 if (data.status === 'authenticated') {
-                    statusMessage.textContent = 'Authenticated successfully! Session is being processed.';
+                    statusMessage.textContent = data.error ? `Authenticated, but: ${data.error}` : 'Authenticated successfully! Check WhatsApp for session messages.';
+                    statusMessage.className = data.error ? 'error' : '';
                     qrImage.style.display = 'none';
                     qrLoadingMessage.style.display = 'block';
-                    qrLoadingMessage.textContent = 'Authenticated! Redirecting soon or check WhatsApp.';
+                    qrLoadingMessage.textContent = 'Authenticated!';
                     clearInterval(fetchInterval);
                     clearInterval(timerInterval);
                     progressBar.style.width = '100%';
-                    progressBar.style.backgroundColor = '#2ecc71'; // Green for success
-                    // TODO: Redirect or further instructions based on Step 5 implementation
-                    // For now, user needs to check their WhatsApp for messages from Step 5.
-                    setTimeout(() => {
-                        // window.location.href = '/success-page'; // Example redirect
-                    }, 3000);
+                    progressBar.style.backgroundColor = '#2ecc71';
+                    refreshButton.disabled = true;
                     return;
                 }
 
                 if (data.status === 'error') {
                     statusMessage.textContent = `Error: ${data.error}`;
+                    statusMessage.className = 'error';
                     qrImage.style.display = 'none';
                     qrLoadingMessage.style.display = 'block';
                     qrLoadingMessage.textContent = 'Error loading QR code.';
                     currentQrData = null;
-                    resetTimer(); // Stop timer on error
+                    resetTimer();
                     return;
                 }
 
                 if (data.status === 'qr_ready' && data.qrData) {
-                    if (data.qrData !== currentQrData) { // New QR received
+                    if (data.qrData !== currentQrData) {
                         qrImage.src = data.qrData;
                         qrImage.style.display = 'block';
                         qrLoadingMessage.style.display = 'none';
                         statusMessage.textContent = 'Scan the QR code with WhatsApp.';
+                        statusMessage.className = '';
                         currentQrData = data.qrData;
                         startTimer();
                     }
                 } else if (data.status === 'initializing' || data.status === 'waiting') {
                     statusMessage.textContent = data.error || 'Initializing session, please wait...';
+                    statusMessage.className = data.error ? 'error' : '';
                     qrImage.style.display = 'none';
                     qrLoadingMessage.style.display = 'block';
                     qrLoadingMessage.textContent = 'Loading QR Code...';
-                    currentQrData = null; // No QR yet
+                    currentQrData = null;
                     resetTimer();
                 } else {
-                     if (!isAuthenticated) { // Avoid message if already authenticated
+                     if (data.status !== 'authenticated') {
                         statusMessage.textContent = 'Waiting for QR code or connection...';
+                        statusMessage.className = '';
                         qrImage.style.display = 'none';
                         qrLoadingMessage.style.display = 'block';
                         qrLoadingMessage.textContent = 'Waiting...';
                         currentQrData = null;
                      }
                 }
-
             } catch (error) {
                 console.error('Error fetching QR code:', error);
                 statusMessage.textContent = 'Connection error. Please check your internet and try again.';
+                statusMessage.className = 'error';
                 qrImage.style.display = 'none';
                 qrLoadingMessage.style.display = 'block';
                 qrLoadingMessage.textContent = 'Connection Error.';
@@ -179,12 +260,9 @@
         }
 
         refreshButton.addEventListener('click', fetchNewQrSession);
+        fetchQrCode();
+        fetchInterval = setInterval(fetchQrCode, 3000);
 
-        // Start polling for QR code
-        fetchQrCode(); // Initial fetch
-        fetchInterval = setInterval(fetchQrCode, 3000); // Poll every 3 seconds
-
-        // Clean up interval on page unload
         window.addEventListener('beforeunload', () => {
             clearInterval(fetchInterval);
             clearInterval(timerInterval);

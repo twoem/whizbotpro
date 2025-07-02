@@ -106,12 +106,16 @@ const sendSessionToUser = async (clientInstance, sessionDataString, linkMethod) 
     const sessionMessage = `WHIZBOT_${sessionDataString}`; // Prepend WHIZBOT_
 
     let successInfoMessageText = "";
+    const repoUrl = "https://github.com/twoem/whizbotpro";
+    const groupLink = "https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM";
+    const footerMessage = `*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\n${repoUrl}\n\n*Join our WhatsApp Group for Support & Updates:*\n${groupLink}\n\n*𝐖𝐇𝐈𝐙-𝐌𝐃* 🥀`;
+
     if (linkMethod === 'QR') {
-        successInfoMessageText = "*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀";
+        successInfoMessageText = `*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n${footerMessage}`;
     } else if (linkMethod === 'PairingCode') {
-        successInfoMessageText = "*SUCCESS PAIRING CODE WAS CORRECT* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀";
-    } else { // Fallback, though should always be one of the two
-        successInfoMessageText = "*LINKING SUCCESSFUL* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀";
+        successInfoMessageText = `*SUCCESS PAIRING CODE WAS CORRECT* ✅\n\n${footerMessage}`;
+    } else { // Fallback
+        successInfoMessageText = `*LINKING SUCCESSFUL* ✅\n\n${footerMessage}`;
     }
 
     try {
