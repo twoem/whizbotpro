@@ -1,71 +1,99 @@
-# Whiz Session Generator
+# Whiz Session Generator (Web Application)
 
-This tool is used to generate a WhatsApp `SESSION_ID` for the `Whiz Pro Bot`. It works by guiding you through linking a new device to your WhatsApp account. The linked device will appear as "WHIZ PRO" in your WhatsApp "Linked Devices" list.
+This tool is a web application used to generate a WhatsApp `SESSION_ID` for the `Whiz Pro Bot`. It guides you through linking a new device to your WhatsApp account using either a QR code or a phone number pairing code. The linked device will be associated with the session generated.
 
-Once linked, the tool captures the session information and sends it as a message to your own WhatsApp number. This session ID (a JSON string) is then used by the `Whiz Pro Bot` to operate without needing to scan a QR code on every startup.
+Once linked, the tool captures the session information and sends it as two messages to your own WhatsApp number:
+1.  The Session ID string, prefixed with `WHIZBOT_`.
+2.  A success confirmation message with a link to the project repository.
+
+This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used by the `Whiz Pro Bot` to operate without needing to scan a QR code on every startup.
 
 ## Prerequisites
 
 *   Node.js (v16 or higher recommended)
 *   NPM (usually comes with Node.js)
+*   A modern web browser.
 *   A working WhatsApp account to link.
-*   A terminal capable of displaying QR codes (most modern terminals).
 
-## Setup and Running
+## Setup and Running (Local Environment)
 
-1.  **Clone the repository (or create the files as provided).**
+1.  **Clone the repository (or ensure all files like `server.js`, `package.json`, and directories `views/`, `public/` are present).**
 
 2.  **Install Dependencies:**
-    Due to sandbox limitations during development, `npm install` steps were problematic. In a local environment, you would run:
+    Open a terminal in the `whiz-session-generator` directory and run:
     ```bash
     npm install
     ```
-    This will install `whatsapp-web.js`, `qrcode-terminal`, and any other dependencies listed in `package.json`. If `package.json` does not list them, you'll need to install them manually:
-    ```bash
-    npm install whatsapp-web.js qrcode-terminal
-    ```
+    This will install `express`, `ejs`, `whatsapp-web.js`, `qrcode`, and other necessary dependencies.
 
-3.  **Run the Generator:**
+3.  **Run the Web Server:**
     ```bash
     npm start
     ```
     or
     ```bash
-    node generator.js
+    node server.js
     ```
+    By default, the server will start on `http://localhost:3000`.
 
-## How it Works
+## How to Use
 
-1.  **Initialization**: The script starts a new `whatsapp-web.js` client. It cleans up any previous temporary session data to ensure a fresh QR code is generated.
-2.  **QR Code Display**: A QR code will be displayed in your terminal.
-3.  **Linking**: Open WhatsApp on your phone, go to `Settings > Linked Devices > Link a Device`, and scan the QR code shown in the terminal. The device should be named "WHIZ PRO".
-4.  **Authentication & Session Capture**: Once you scan the QR code and WhatsApp authenticates, the script captures the session data. This data is saved temporarily in the `temp_session_data_generator` directory.
-5.  **Session ID Display (Console)**: The captured session ID (a JSON string) will be printed to your console.
-6.  **Prompt for Phone Number**: The script will then ask you to enter your own WhatsApp number (including the country code, e.g., `+14155552671` or `14155552671`).
-7.  **Send Session ID via WhatsApp**: The script uses the newly linked "WHIZ PRO" session to send the captured Session ID string as a message to the number you provided.
-8.  **Cleanup**: After sending the message (or if an error occurs), the script cleans up the temporary session files and exits.
+1.  **Open the Web Application:** Navigate to `http://localhost:3000` (or the appropriate URL if deployed) in your web browser.
 
-## Using the Session ID
+2.  **Choose Linking Method:**
+    *   The index page will present two options:
+        *   "Link with QR Code"
+        *   "Link with Pairing Code"
 
-Copy the entire JSON string received in the WhatsApp message (or from the console log). This is your `SESSION_ID`. You will use this to set the `WHATSAPP_SESSION_ID` environment variable when running the `Whiz Pro Bot`.
+3.  **Option A: Link with QR Code**
+    *   Click "Link with QR Code".
+    *   A new page will load, attempting to generate and display a QR code.
+    *   A progress bar will indicate the QR code's approximate expiry time (around 20 seconds). The QR code may refresh automatically, or you can use the "Refresh QR Code" button.
+    *   Open WhatsApp on your phone, go to `Settings > Linked Devices > Link a Device`, and scan the QR code shown on the web page.
+    *   Wait for authentication. The status on the page will update.
 
-Example of a (truncated) Session ID:
-```json
-{"WABrowserId":"\"...\"","WASecretBundle":"\"...\"","WAToken1":"\"...\"","WAToken2":"\"...\""}
-```
+4.  **Option B: Link with Pairing Code**
+    *   Click "Link with Pairing Code".
+    *   Enter your full WhatsApp phone number (including country code, e.g., `+14155552671`) in the input field and click "Get Pairing Code".
+    *   A pairing code (usually 8 characters) will be displayed on the web page.
+    *   On your primary phone, open WhatsApp and go to `Settings > Linked Devices > Link with phone number instead`.
+    *   Enter the pairing code displayed on the web page into your WhatsApp.
+    *   Wait for authentication. The status on the page will update.
 
-## File Structure
+5.  **Session Delivery:**
+    *   Upon successful authentication (via either method), the web page will indicate success.
+    *   The system will then send two messages to the WhatsApp account you just linked:
+        1.  **Session ID Message:** Starts with `WHIZBOT_` followed by the actual session JSON string.
+            Example: `WHIZBOT_{"WABrowserId":"...", ...}`
+        2.  **Success Info Message:** Confirms linking and provides a GitHub repository link.
+            Example for QR: "*QR HAS BEEN SCANNED SUCCESSFULLY* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀"
+            Example for Pairing Code: "*SUCCESS PAIRING CODE WAS CORRECT* ✅\n\n*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟\nhttps://github.com/twoem\n\n*WHIZ BOT* 🥀"
 
-*   `generator.js`: The main application file for the session generator.
+6.  **Using the Session ID:**
+    *   Copy the JSON string part from the `WHIZBOT_{...}` message (i.e., everything *after* `WHIZBOT_`). This is your `SESSION_ID`.
+    *   Use this `SESSION_ID` to set the `WHATSAPP_SESSION_ID` environment variable when running the `Whiz Pro Bot`.
+
+## Visuals
+*   The web pages feature the Whiz Bot logo:
+    <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo" width="100">
+*   Pages have a consistent dark theme background.
+
+## File Structure Overview
+
+*   `server.js`: The main Express.js application file.
 *   `package.json`: Project metadata and dependencies.
-*   `temp_session_data_generator/`: Temporary directory created during runtime to store session files for linking. It is automatically deleted upon script completion or error.
-*   `README.md`: This file.
+*   `views/`: Contains EJS templates (`index.ejs`, `qr-link.ejs`, `pairing-link.ejs`).
+*   `public/`: Contains static assets:
+    *   `css/style.css`: Global stylesheet.
+    *   `js/script.js`: Placeholder for any future global client-side JS (currently, JS is embedded in EJS files).
+    *   `images/`: Placeholder for local images (logo is currently hotlinked).
+*   `temp_qr_session_data/`, `temp_pairing_session_data/`: Temporary directories created during runtime to store session files. These should be cleaned up by the application, but manual deletion might be needed if the server crashes.
 
 ## Important Notes
 
-*   **Security**: The generated `SESSION_ID` grants full access to your WhatsApp account, similar to an active linked device. **KEEP IT PRIVATE AND SECURE.** Do not share it with anyone.
-*   **One Session ID per Bot Instance**: Each instance of the `Whiz Pro Bot` needs its own unique `SESSION_ID` generated this way.
-*   **Re-generation**: If the bot logs out or the session becomes invalid, you will need to run this generator again to get a new `SESSION_ID`.
-*   **Headless Environment**: The Puppeteer arguments are configured for running in a headless Linux environment. If you are on a different OS or encounter Puppeteer issues, you might need to adjust these or install additional system dependencies.
+*   **Security**: The generated `SESSION_ID` grants full access to your WhatsApp account. **KEEP IT PRIVATE AND SECURE.** Do not share it.
+*   **Single User Focus**: The current backend implementation is simplified and best suited for one user generating a session at a time. Running multiple linking processes concurrently might lead to issues.
+*   **Error Handling**: Basic error handling is implemented. If you encounter persistent issues, check the server console logs.
+*   **Headless Environment**: Puppeteer arguments are configured for a headless Linux environment. Adjustments or additional system dependencies might be needed for other operating systems.
 
 This tool was created by Jules, your AI Software Engineer.

@@ -3,6 +3,8 @@ const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 
+const startTime = new Date(); // Record start time
+
 console.log("Whiz Pro Bot starting...");
 
 const DATA_PATH = path.join(__dirname, 'session_data'); // Directory to store session files
@@ -82,10 +84,43 @@ client.on('ready', async () => {
         } else {
             console.log("Client info not fully available, but client is ready.");
         }
+
+        // --- Send Startup Notification ---
+        const userName = client.info.pushname || client.info.me.user;
+        const now = new Date();
+        const uptimeMs = now - startTime;
+
+        let uptimeString = "";
+        const seconds = Math.floor((uptimeMs / 1000) % 60);
+        const minutes = Math.floor((uptimeMs / (1000 * 60)) % 60);
+        const hours = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
+        const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+
+        if (days > 0) uptimeString += `${days}d `;
+        if (hours > 0) uptimeString += `${hours}h `;
+        if (minutes > 0) uptimeString += `${minutes}m `;
+        uptimeString += `${seconds}s`;
+        if (uptimeString.trim() === "0s") uptimeString = "just now";
+
+
+        const startupMessage = `Hello ${userName} 🤗\nYour Bot is running perfectly 💥\nRepo: https://github.com/twoem\nUptime: ${uptimeString}`;
+
+        if (client.info.me?.user) {
+            try {
+                await client.sendMessage(client.info.me.user, startupMessage);
+                console.log("Startup notification sent successfully to self.");
+            } catch (sendErr) {
+                console.error("Failed to send startup notification:", sendErr);
+            }
+        } else {
+            console.warn("Could not send startup message: client.info.me.user is not defined.");
+        }
+        // --- End Startup Notification ---
+
         // The device name "WHIZ PRO" should have been set during the linking process by the linking service.
         // We can't easily change it from here after it's linked.
     } catch (err) {
-        console.error("Error accessing client info on ready:", err);
+        console.error("Error accessing client info on ready or sending startup message:", err);
     }
 });
 
@@ -108,29 +143,63 @@ if (!fs.existsSync(VIEW_ONCE_MEDIA_PATH)) {
 }
 
 client.on('message', async (msg) => {
-    // --- Save View Once Media Functionality ---
-    if (msg.isViewOnce && msg.hasMedia) {
-        console.log(`View once media received from ${msg.from}`);
-        try {
-            const media = await msg.downloadMedia();
-            if (media) {
-                const timestamp = new Date().getTime();
-                const extension = media.mimetype.split('/')[1] || 'bin';
-                const filename = `${timestamp}_${msg.id.id}.${extension}`;
-                const filePath = path.join(VIEW_ONCE_MEDIA_PATH, filename);
-
-                fs.writeFile(filePath, media.data, 'base64', (err) => {
-                    if (err) {
-                        console.error(`Failed to save view once media: ${err}`);
+    // --- Modified View-Once Handling (!vv command) ---
+    if (msg.body.toLowerCase() === '!vv') {
+        if (msg.hasQuotedMsg) {
+            try {
+                const quotedMsg = await msg.getQuotedMessage();
+                if (quotedMsg && quotedMsg.isViewOnce && quotedMsg.hasMedia) {
+                    const media = await quotedMsg.downloadMedia();
+                    if (media) {
+                        await client.sendMessage(msg.from, media, { caption: 'Here is the view-once media you requested! ✨' });
+                        await msg.reply("Got it! ✨ The view-once media has been captured and sent to you.");
                     } else {
-                        console.log(`View once media saved to ${filePath}`);
+                        await msg.reply("Oops! Something went wrong while trying to capture the media. 😥 Please try again. (Media download failed)");
                     }
-                });
+                } else {
+                    await msg.reply("Hmm, it seems you didn't reply to a view-once message with media. Please use !vv as a reply to a view-once image or video. 🤔");
+                }
+            } catch (error) {
+                console.error("Error processing !vv command:", error);
+                await msg.reply("Oops! Something went wrong while trying to capture the media. 😥 Please try again.");
             }
-        } catch (err) {
-            console.error(`Error downloading view once media: ${err}`);
+        } else {
+            await msg.reply("Please reply to a view-once message with `!vv` to save it.");
         }
+        return; // Command processed, no further checks in this handler for this message
     }
+
+    // --- Menu Command (!menu) ---
+    if (msg.body.toLowerCase() === '!menu') {
+        const menuText = `
+*Whiz Pro Bot Menu* 🤖
+
+*Commands:*
+- \`!vv\` : Reply to a view-once message with \`!vv\` to save and receive it.
+- \`!contact\` : Get the admin's contact link.
+- \`!menu\` : Show this menu.
+
+*Automatic Features:*
+- Auto View Status: Automatically views status updates from your contacts.
+- Auto Like Status: Automatically likes status updates with a '🔥' emoji.
+
+Stay tuned for more features!
+Repo: https://github.com/twoem
+        `;
+        try {
+            await client.sendMessage(msg.from, menuText.trim());
+            console.log(`Sent menu to ${msg.from}`);
+        } catch (err) {
+            console.error(`Failed to send menu to ${msg.from}: ${err}`);
+        }
+        return; // Menu command processed
+    }
+
+    // --- (Old Save View Once Media Functionality - Now Disabled/Removed) ---
+    // if (msg.isViewOnce && msg.hasMedia) {
+    //     console.log(`View once media received from ${msg.from}`);
+    //     // ... old saving logic ...
+    // }
 
     // --- Auto View Status Functionality ---
     // Status updates are messages from 'status@broadcast'

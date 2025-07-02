@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="logo-container">
+            <img src="https://i.ibb.co/XxJgqVKp/IMG-20250701-WA0003.jpg" alt="Whiz Bot Logo">
+        </div>
+        <h2><%= title %></h2>
+        <p>Enter your phone number with country code (e.g., +14155552671) to receive a pairing code.</p>
+
+        <form id="pairing-form">
+            <div>
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="e.g., +12345678900" required>
+            </div>
+            <button type="submit" id="submitPhoneBtn" class="button-secondary">Get Pairing Code</button>
+            <button type="button" id="reset-pairing-button" class="button-warning" style="display:none;">Reset/Try New Number</button>
+        </form>
+
+        <div id="pairing-code-display" class="hidden">
+            <!-- Pairing code will appear here -->
+        </div>
+        <p class="instructions hidden" id="pairing-instructions">
+            Once the code appears, go to WhatsApp on your primary phone:
+            Settings > Linked Devices > Link with phone number instead. Enter the code there.
+        </p>
+
+        <div id="status-message">Enter your phone number to begin.</div>
+        <a href="/" class="button-link home-link">Back to Home</a>
+    </div>
+
+    <script>
+        const pairingForm = document.getElementById('pairing-form');
+        const phoneNumberInput = document.getElementById('phoneNumber');
+        const submitPhoneBtn = document.getElementById('submitPhoneBtn');
+        const pairingCodeDisplay = document.getElementById('pairing-code-display');
+        const pairingInstructions = document.getElementById('pairing-instructions');
+        const statusMessage = document.getElementById('status-message');
+        const resetPairingButton = document.getElementById('reset-pairing-button');
+
+        let authStatusInterval;
+        let isPollingAuthStatus = false;
+
+        async function requestNewPairingSession() {
+            statusMessage.textContent = 'Resetting pairing session...';
+            submitPhoneBtn.disabled = true;
+            resetPairingButton.style.display = 'none';
+            try {
+                await fetch('/api/new-pairing-session', { method: 'POST' });
+                statusMessage.textContent = 'Session reset. Please enter your phone number again.';
+                phoneNumberInput.disabled = false;
+                phoneNumberInput.value = '';
+                pairingCodeDisplay.classList.add('hidden');
+                pairingCodeDisplay.textContent = '';
+                pairingInstructions.classList.add('hidden');
+                clearInterval(authStatusInterval);
+                isPollingAuthStatus = false;
+            } catch (error) {
+                console.error('Error resetting pairing session:', error);
+                statusMessage.textContent = 'Error resetting session.';
+            } finally {
+                submitPhoneBtn.disabled = false;
+            }
+        }
+
+        pairingForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const phoneNumber = phoneNumberInput.value;
+            if (!phoneNumber) {
+                statusMessage.textContent = 'Please enter a valid phone number.';
+                return;
+            }
+
+            submitPhoneBtn.disabled = true;
+            phoneNumberInput.disabled = true; // Disable input during request
+            resetPairingButton.style.display = 'inline-block';
+            statusMessage.textContent = 'Requesting pairing code... Please wait.';
+            pairingCodeDisplay.classList.add('hidden');
+            pairingCodeDisplay.textContent = '';
+            pairingInstructions.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/request-pairing-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber })
+                });
+                const data = await response.json();
+
+                if (response.ok && (data.status === 'code_requested' || data.status === 'code_issued' || data.status === 'processing')) {
+                    statusMessage.textContent = data.message || 'Code requested. Waiting for code...';
+                    if(data.pairingCode) {
+                        pairingCodeDisplay.textContent = data.pairingCode;
+                        pairingCodeDisplay.classList.remove('hidden');
+                        pairingInstructions.classList.remove('hidden');
+                        statusMessage.textContent = "Pairing code received. Enter it on your phone.";
+                    }
+                    startPollingAuthStatus(); // Start polling for authentication
+                } else {
+                    statusMessage.textContent = `Error: ${data.message || 'Failed to request pairing code.'}`;
+                    submitPhoneBtn.disabled = false;
+                    phoneNumberInput.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting phone number:', error);
+                statusMessage.textContent = 'Network error. Please try again.';
+                submitPhoneBtn.disabled = false;
+                phoneNumberInput.disabled = false;
+            }
+        });
+
+        resetPairingButton.addEventListener('click', requestNewPairingSession);
+
+        function startPollingAuthStatus() {
+            if (isPollingAuthStatus) return;
+            isPollingAuthStatus = true;
+            clearInterval(authStatusInterval); // Clear any existing interval
+
+            authStatusInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/pairing-auth-status');
+                    const data = await response.json();
+
+                    statusMessage.textContent = data.message || 'Checking status...';
+
+                    if (data.status === 'authenticated') {
+                        statusMessage.textContent = 'Authenticated successfully! Session is being processed.';
+                        pairingCodeDisplay.textContent = '✓';
+                        pairingCodeDisplay.style.borderColor = '#2ecc71';
+                        pairingInstructions.classList.add('hidden');
+                        clearInterval(authStatusInterval);
+                        isPollingAuthStatus = false;
+                        submitPhoneBtn.disabled = true;
+                        resetPairingButton.style.display = 'none';
+                        // TODO: Redirect or further instructions based on Step 5
+                        // setTimeout(() => { window.location.href = '/success-page'; }, 3000);
+                    } else if (data.status === 'error') {
+                        statusMessage.textContent = `Error: ${data.message}`;
+                        clearInterval(authStatusInterval);
+                        isPollingAuthStatus = false;
+                        submitPhoneBtn.disabled = false; // Allow retry
+                        phoneNumberInput.disabled = false;
+                        pairingCodeDisplay.classList.add('hidden');
+                    } else if (data.status === 'code_issued' && data.pairingCode) {
+                        if (pairingCodeDisplay.textContent !== data.pairingCode) {
+                             pairingCodeDisplay.textContent = data.pairingCode;
+                        }
+                        pairingCodeDisplay.classList.remove('hidden');
+                        pairingInstructions.classList.remove('hidden');
+                        statusMessage.textContent = "Pairing code issued. Enter it on your phone.";
+                    } else if (data.status === 'idle' && !phoneNumberInput.disabled) {
+                        // Means server reset or initial state, stop polling if form is active
+                        clearInterval(authStatusInterval);
+                        isPollingAuthStatus = false;
+                    }
+
+                } catch (error) {
+                    console.error('Error polling auth status:', error);
+                    statusMessage.textContent = 'Error checking status. Retrying...';
+                    // Keep polling on network errors, or clear interval if too many errors
+                }
+            }, 5000); // Poll every 5 seconds
+        }
+
+        // Clean up interval on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(authStatusInterval);
+        });
+
+    </script>
+</body>
+</html>

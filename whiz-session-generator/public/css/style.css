@@ -1,0 +1,244 @@
+/* Global styles for Whiz Session Generator */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background-color: #2c3e50; /* Dark blue-grey background */
+    color: #ecf0f1; /* Light text color */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container {
+    background-color: #34495e; /* Slightly lighter container background */
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: center;
+    width: 100%;
+    max-width: 550px; /* Max width for content readability */
+}
+
+.logo-container {
+    margin-bottom: 20px;
+}
+
+.logo-container img {
+    max-width: 100px; /* Standard logo size */
+    height: auto;
+    border-radius: 8px; /* Optional: slightly rounded corners for the logo */
+}
+
+h1, h2 {
+    color: #ecf0f1;
+    margin-top: 0;
+}
+
+h1 {
+    font-size: 2em;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 1.5em;
+    margin-bottom: 25px;
+}
+
+p {
+    line-height: 1.6;
+    margin-bottom: 15px;
+    font-size: 1.05em;
+}
+
+a {
+    color: #3498db; /* Link color */
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Button Styles */
+button, .button-link {
+    display: inline-block;
+    padding: 12px 25px;
+    margin: 10px 5px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    border: none;
+    font-weight: bold;
+}
+
+button:hover, .button-link:hover {
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    background-color: #7f8c8d !important; /* Muted color for disabled */
+    cursor: not-allowed;
+    transform: translateY(0);
+}
+
+.button-primary {
+    background-color: #3498db; /* Blue */
+    color: white;
+}
+.button-primary:hover {
+    background-color: #2980b9;
+}
+
+.button-secondary {
+    background-color: #2ecc71; /* Green */
+    color: white;
+}
+.button-secondary:hover {
+    background-color: #27ae60;
+}
+
+.button-danger, .home-link {
+    background-color: #e74c3c; /* Red */
+    color: white;
+}
+.button-danger:hover, .home-link:hover {
+    background-color: #c0392b;
+}
+
+.button-warning {
+    background-color: #f39c12; /* Orange */
+    color: white;
+}
+.button-warning:hover {
+    background-color: #e67e22;
+}
+
+
+/* Form Styles */
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    text-align: left;
+}
+
+input[type="tel"], input[type="text"] {
+    width: calc(100% - 24px); /* Full width minus padding */
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #7f8c8d;
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+/* QR Code Specific */
+#qr-code-container {
+    margin: 20px auto;
+    padding: 15px;
+    background-color: white; /* QR codes need white background */
+    border-radius: 8px;
+    min-height: 260px;
+    width: 260px; /* Fixed size for QR image */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+#qr-code-container img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+#progress-bar-container {
+    width: 100%;
+    max-width: 260px; /* Match QR container width */
+    margin: 15px auto;
+    background-color: #555;
+    border-radius: 5px;
+    height: 12px;
+    overflow: hidden; /* Ensure progress bar stays within bounds */
+}
+
+#progress-bar {
+    width: 100%;
+    height: 100%;
+    background-color: #3498db; /* Blue progress */
+    border-radius: 5px;
+    transition: width 0.1s linear;
+}
+
+/* Pairing Code Specific */
+#pairing-code-display {
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #2c3e50; /* Darker background for code display */
+    border: 2px dashed #3498db;
+    border-radius: 8px;
+    font-size: 2em;
+    font-weight: bold;
+    letter-spacing: 3px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ecf0f1;
+}
+#pairing-code-display.hidden, .instructions.hidden {
+    display: none;
+}
+
+/* Status Messages */
+#status-message {
+    margin-top: 20px;
+    font-size: 1.1em;
+    min-height: 2.5em;
+    line-height: 1.4;
+    color: #e0e0e0; /* Slightly lighter for status */
+}
+#timer-message, .instructions {
+    font-size: 0.9em;
+    color: #bdc3c7; /* Muted color for helper text */
+    margin-top: 5px;
+}
+
+
+footer {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #95a5a6; /* Muted footer text */
+}
+
+/* Responsive adjustments (optional example) */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+        margin: 10px;
+    }
+    h1 {
+        font-size: 1.8em;
+    }
+    h2 {
+        font-size: 1.3em;
+    }
+    button, .button-link {
+        padding: 10px 15px;
+        font-size: 1em;
+    }
+    #qr-code-container {
+        width: 220px;
+        min-height: 220px;
+    }
+    #progress-bar-container {
+        max-width: 220px;
+    }
+}
