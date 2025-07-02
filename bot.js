@@ -1,212 +1,203 @@
-require('dotenv').config();
 const {
   default: makeWASocket,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
   useMultiFileAuthState,
-  downloadContentFromMessage
+  fetchLatestBaileysVersion,
+  makeInMemoryStore,
+  DisconnectReason
 } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
-const express = require('express');
-const moment = require('moment');
+const { Boom } = require('@hapi/boom');
+const P = require('pino');
 const fs = require('fs');
 const path = require('path');
+const chalk = require('chalk');
+const figlet = require('figlet');
+const moment = require('moment');
+const fancytext = require('./lib/fancytext');
+const config = require('./config.json');
 
-// 📂 Setup directories
-const AUTH_DIR = './auth_info';
-const TEMP_DIR = './temp_media';
-const LOG_FILE = './bot.log';
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
+const authPath = './auth_info';
+if (!fs.existsSync(authPath)) fs.mkdirSync(authPath);
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-let sock = null;
+const store = makeInMemoryStore({
+  logger: P().child({ level: 'silent', stream: 'store' })
+});
+store.readFromFile(path.join(authPath, 'store.json'));
+setInterval(() => {
+  store.writeToFile(path.join(authPath, 'store.json'));
+}, 10_000);
 
-// 📝 Logging utility
-function addLog(msg, level = 'INFO') {
-  const entry = `[${moment().format('YYYY-MM-DD HH:mm:ss')}] [${level}] ${msg}`;
-  console.log(entry);
-  fs.appendFileSync(LOG_FILE, entry + '\n');
-}
+let startTime = Date.now();
+const getUptime = () => {
+  const diff = Date.now() - startTime;
+  const dur = moment.duration(diff);
+  return `${dur.hours()}h ${dur.minutes()}m ${dur.seconds()}s`;
+};
 
-// ⏱ Uptime calculation
-const start = Date.now();
-function getUptime() {
-  const diff = Date.now() - start;
-  const d = new Date(diff);
-  return `${d.getUTCHours()}h ${d.getUTCMinutes()}m ${d.getUTCSeconds()}s`;
-}
-
-// 🧠 Handle view-once media
-async function handleViewOnce(msg, sender) {
-  const viewOnce = msg.message?.viewOnceMessageV2?.message;
-  if (!viewOnce) {
-    await sock.sendMessage(sender, { text: '⚠️ Reply to a view-once message using `!vv`.' });
-    return;
-  }
-  const type = Object.keys(viewOnce)[0];
-  const ext = type === 'imageMessage' ? 'jpg' : 'mp4';
-  const stream = await downloadContentFromMessage(viewOnce[type], type === 'imageMessage' ? 'image' : 'video');
-  let buffer = Buffer.from([]);
-  for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-  const tmp = path.join(TEMP_DIR, `tmp.${ext}`);
-  fs.writeFileSync(tmp, buffer);
-  await sock.sendMessage(sender, { [type === 'imageMessage' ? 'image' : 'video']: { url: tmp }, caption: '🔓 View-once Unlocked' });
-  fs.unlinkSync(tmp);
-  addLog('🔓 View-once media unlocked for ' + sender);
-}
-
-// 🟢 Start the bot
 async function startBot() {
-  addLog('Initializing WhatsApp socket');
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+  console.clear();
+  console.log(chalk.green(figlet.textSync(config.botname)));
+  console.log(chalk.blue(`Owner: ${config.ownername}`));
 
-  sock = makeWASocket({
+  const { state, saveCreds } = await useMultiFileAuthState(authPath);
+  const { version } = await fetchLatestBaileysVersion();
+  console.log(chalk.yellow(`Using WA version ${version.join('.')}`));
+
+  const sock = makeWASocket({
     version,
-    printQRInTerminal: false,
+    logger: P({ level: 'silent' }),
+    printQRInTerminal: true,
     auth: state,
-    browser: ['WHIZ-BOT', 'Chrome', '120.0']
+    syncFullHistory: false
   });
+  store.bind(sock.ev);
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (u) => {
-    const { connection, lastDisconnect, qr } = u;
-    if (qr) {
-      addLog('QR received, displaying in terminal');
-      qrcode.generate(qr, { small: true });
-    }
+    const { connection, lastDisconnect } = u;
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
-      addLog(`Connection closed: ${code}`, 'WARN');
+      console.log(chalk.red(`Disconnected: ${code}`));
       if (code !== DisconnectReason.loggedOut) startBot();
-    }
-    if (connection === 'open') {
-      addLog('✅ Connected to WhatsApp');
-      sock.sendMessage(sock.user.id, { text: `🤖 WHIZ-BOT is now online.\nUptime: ${getUptime()}` });
+    } else if (connection === 'open') {
+      console.log(chalk.green('Connected to WhatsApp!'));
+      sock.sendMessage(sock.user.id, {
+        text: `🤖 ${config.botname} is now online!\n⏱ Uptime: ${getUptime()}`
+      });
+      startTime = Date.now();
     }
   });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
     if (!m.message || m.key.fromMe) return;
-    const sender = m.key.remoteJid;
-    const body = m.message.conversation || m.message.extendedTextMessage?.text || '';
-    const cmd = body.startsWith('!') ? body.slice(1).trim().split(' ')[0].toLowerCase() : null;
-    addLog(`Message from ${sender}: ${body}`);
 
-    if (cmd) {
-      switch (cmd) {
-        case 'ping': return sock.sendMessage(sender, { text: '🏓 Pong!' });
-        case 'vv': return handleViewOnce(m, sender);
-        case 'help':
-        case 'menu':
-          return sock.sendMessage(sender, {
-            text: `
-┏━━━━━━━━ WHIZ BOT ━━━━━━━━┓
-┃ 🛠 Commands:               ┃
-┃ !ping       • Pong test   ┃
-┃ !vv         • Unlock view-once media ┃
-┃ !time       • Show time   ┃
-┃ !date       • Show date   ┃
-┃ !day        • Day of week ┃
-┃ !month      • Month name  ┃
-┃ !year       • Year        ┃
-┃ !quote      • Motivational quote ┃
-┃ !joke       • Random joke ┃
-┃ !fact       • Random fact ┃
-┃ !echo text  • Repeat text ┃
-┃ !about      • About Bot   ┃
-┃ !creator    • About WHIZ  ┃
-┃ !status     • Bot status  ┃
-┃ !calc expr  • Calculator  ┃
-┃ !user       • Your ID     ┃
-┃ !support    • Support info┃
-┃ !emoji      • Random emoji┃
-┃ !uptime     • Bot uptime  ┃
-┃ !help, !menu • Show this  ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`
-          });
-        case 'time':
-          return sock.sendMessage(sender, { text: `🕒 ${moment().format('HH:mm:ss')}` });
-        case 'date':
-          return sock.sendMessage(sender, { text: `📅 ${moment().format('YYYY-MM-DD')}` });
-        case 'day':
-          return sock.sendMessage(sender, { text: `📌 ${moment().format('dddd')}` });
-        case 'month':
-          return sock.sendMessage(sender, { text: `🗓️ ${moment().format('MMMM')}` });
-        case 'year':
-          return sock.sendMessage(sender, { text: `📆 ${moment().format('YYYY')}` });
-        case 'quote': {
-          const quotes = [
-            "“Code is like humor. When you have to explain it, it’s bad.”",
-            "“First, solve the problem. Then, write the code.”",
-            "“Simplicity is the soul of efficiency.”"
-          ];
-          return sock.sendMessage(sender, { text: quotes[Math.floor(Math.random() * quotes.length)] });
-        }
-        case 'joke': {
-          const jokes = [
-            "Why do programmers hate nature? Too many bugs.",
-            "Why did the dev go broke? Cos he used all his cache!",
-            "I told a UDP joke once... no reply."
-          ];
-          return sock.sendMessage(sender, { text: jokes[Math.floor(Math.random() * jokes.length)] });
-        }
-        case 'fact': {
-          const facts = [
-            "JS was created in 10 days!",
-            "Git was made by Linus Torvalds.",
-            "First virus: 1986!"
-          ];
-          return sock.sendMessage(sender, { text: facts[Math.floor(Math.random() * facts.length)] });
-        }
-        case 'echo':
-          return sock.sendMessage(sender, { text: body.replace(/^!echo\s+/, '') || 'Nothing to echo!' });
-        case 'about':
-          return sock.sendMessage(sender, {
-            text: '🤖 WHIZ BOT v1.0 built with Baileys\nFeature-rich and robust.'
-          });
-        case 'creator':
-          return sock.sendMessage(sender, { text: '👨‍💻 Creator: WHIZ — Software Designer & Web Dev.' });
-        case 'status':
-          return sock.sendMessage(sender, { text: '✅ I am up and working fine!' });
-        case 'calc': {
-          const expr = body.replace(/^!calc\s+/, '');
-          try {
-            const res = eval(expr);
-            return sock.sendMessage(sender, { text: `🧮 Result: ${res}` });
-          } catch {
-            return sock.sendMessage(sender, { text: '❌ Invalid expression. Use e.g. !calc 5+5' });
-          }
-        }
-        case 'user':
-          return sock.sendMessage(sender, { text: `🙋 Your ID: ${sender}` });
-        case 'support':
-          return sock.sendMessage(sender, { text: '📞 Support: support@whiz.dev' });
-        case 'emoji': {
-          const em = ['😀','🔥','🚀','✨','🎯','🤖','💡','📱'];
-          return sock.sendMessage(sender, { text: em[Math.floor(Math.random() * em.length)] });
-        }
-        case 'uptime':
-          return sock.sendMessage(sender, { text: `⏱️ Uptime: ${getUptime()}` });
-        default:
-          return sock.sendMessage(sender, { text: `❓ Unknown command: ${cmd}. Use !menu` });
+    const jid = m.key.remoteJid;
+    const body =
+      m.message.conversation ||
+      m.message.extendedTextMessage?.text ||
+      '';
+    const prefix = config.prefixes.find(p => body.startsWith(p));
+    if (!prefix) return;
+
+    const [cmd, ...args] = body.slice(prefix.length).trim().split(/\s+/);
+    const command = cmd.toLowerCase();
+    const quoted = { quoted: m };
+
+    console.log(chalk.gray(`[MSG] ${jid} » ${body}`));
+
+    // Helper to send text
+    const reply = (t) => sock.sendMessage(jid, { text: t }, quoted);
+
+    switch (command) {
+      case 'ping': return reply('🏓 Pong!');
+      case 'uptime': return reply(`⏱ Uptime: ${getUptime()}`);
+      case 'owner': return reply(`👑 Owner: ${config.ownername}`);
+      case 'repo': return reply(`🔗 Repo: ${config.repo}`);
+      case 'menu':
+      case 'help': {
+        const border = '═'.repeat(30);
+        const menu = `
+╭─⊷ ${config.botname} ⊶─
+│ Owner : ${config.ownername}
+│ Prefix: ${config.prefixes.join(' ')}
+│ Uptime: ${getUptime()}
+│ Repo  : ${config.repo}
+${border}
+│ Commands:
+│ ${config.commands.join('\n│ ')}
+${border}
+╰─ Have fun! ──
+`;
+        return sock.sendMessage(jid, { text: menu }, quoted);
       }
+
+      case 'vv': {
+        const v1 = m.message?.ephemeralMessage?.message?.viewOnceMessage?.message;
+        if (v1) {
+          await sock.sendMessage(jid, { forward: v1 }, quoted);
+        } else return reply('⚠️ Reply to a view‑once message and send !vv');
+        break;
+      }
+
+      case 'fancy': {
+        const txt = args.join(' ');
+        if (!txt) return reply('⚠️ Usage: !fancy your text');
+        const arr = fancytext(txt);
+        return sock.sendMessage(jid, { text: arr.join('\n') }, quoted);
+      }
+
+      case 'echo': return reply(`🔁 ${args.join(' ') || '(nothing)'}`);
+      case 'time': return reply(`🕒 ${moment().format('HH:mm:ss')}`);
+      case 'date': return reply(`📅 ${moment().format('YYYY-MM-DD')}`);
+      case 'day': return reply(`📌 ${moment().format('dddd')}`);
+      case 'month': return reply(`🗓️ ${moment().format('MMMM')}`);
+      case 'year': return reply(`📆 ${moment().format('YYYY')}`);
+
+      case 'quote': {
+        const qs = [
+          "“Code is like humor...” – Cory House",
+          "“First, solve the problem...” – John Johnson",
+          "“Simplicity is the soul...” – Austin Freeman"
+        ];
+        return reply(qs[Math.floor(Math.random()*qs.length)]);
+      }
+
+      case 'joke': {
+        const js = [
+          "Why do programmers hate nature? It has too many bugs!",
+          "Debugging: where you replace a bug with two new bugs.",
+          "I told my computer I needed a break... it said no problem, it needed one too."
+        ];
+        return reply(js[Math.floor(Math.random()*js.length)]);
+      }
+
+      case 'fact': {
+        const fsn = [
+          "JS was invented in 10 days.",
+          "Git was created by Linus Torvalds.",
+          "The first virus was in 1986."
+        ];
+        return reply(fsn[Math.floor(Math.random()*fsn.length)]);
+      }
+
+      // Placeholder downloaders
+      case 'ytmp3':
+      case 'ytmp4':
+      case 'tiktok':
+        return reply('🔗 Download feature not implemented yet.');
+
+      case 'ai':
+        return reply(`🧠 AI says: "${args.join(' ')}"`);
+
+      case 'shorten':
+        return reply('🔗 URL shortener not set up.');
+
+      case 'weather':
+        return reply('🌦 Weather API not configured.');
+
+      case 'news':
+        return reply('📰 News API not configured.');
+
+      case 'identity':
+        return reply(`🆔 Your ID: ${jid}`);
+
+      case 'sticker': {
+        // sticker creation needs media download logic
+        return reply('📸 Send an image/video with caption "!sticker"');
+      }
+
+      case 'speed':
+        return reply('⚡ Speedtest not integrated.');
+
+      case 'bye':
+        return reply('👋 Goodbye!');
+
+      default:
+        return; // ignore
     }
   });
 
-  // 🗂 Express app for quick status/log
-  app.get('/', (_, res) => {
-    res.send(`
-      <h1>🤖 WHIZ BOT</h1>
-      <p>Status: <strong>Online</strong></p>
-      <p>Uptime: ${getUptime()}</p>
-      <pre>${fs.readFileSync(LOG_FILE, 'utf-8').slice(-5000)}</pre>
-    `);
-  });
-
-  app.listen(PORT, () => addLog(`Express server running at http://localhost:${PORT}`));
+  sock.ev.on('creds.update', saveCreds);
 }
 
 startBot();
