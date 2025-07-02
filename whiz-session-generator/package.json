@@ -1,0 +1,23 @@
+{
+  "name": "whiz-session-generator",
+  "version": "1.0.0",
+  "description": "Generates WhatsApp session ID for Whiz Pro Bot by linking a new device.",
+  "main": "generator.js",
+  "scripts": {
+    "start": "node generator.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "whatsapp",
+    "session",
+    "generator",
+    "qr"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
