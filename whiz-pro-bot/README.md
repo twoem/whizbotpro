@@ -1,26 +1,54 @@
 # 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot (Powered by Baileys)
 
-𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and **`@whiskeysockets/baileys`**. This library allows for direct interaction with WhatsApp's servers, making the bot lighter and more stable by avoiding browser dependencies (like Puppeteer/Chromium). The bot offers automation and utility features, along with a web interface to view its live logs.
+𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and **`@whiskeysockets/baileys`**. This library allows for direct interaction with WhatsApp's servers, making the bot lighter and more stable by avoiding browser dependencies (like Puppeteer/Chromium) for its core operation. The bot offers a wide array of automation, utility, media, group management, and owner-specific commands, along with a web interface to view its live logs.
 
 ## Features
 
-1.  **Save View Once Media (`!vv` command)**: Reply to any view-once message (image or video) with `!vv`. The bot will download the media and send it back to you.
-2.  **Auto Like Status (Reactions)**: Automatically reacts with a '🔥' emoji to new status updates from your contacts. (Auto-viewing of statuses is currently under review for full Baileys implementation).
-3.  **Contact Link (`!contact` command)**: Use `!contact` to get contact information for "Whiz" (`+254754783683`) and a link to the community WhatsApp group.
-4.  **Bot Menu (`!menu` command)**: Use `!menu` to display a list of available commands, features, repository link, and group link.
-5.  **Startup Notification**: When the bot successfully connects to WhatsApp, it sends a notification message to your own number, including a greeting, your WhatsApp profile name, repository/group links, and its current uptime.
-6.  **Web Log Viewer**: A built-in web server provides a page (default: `http://localhost:3001/bot-log`) to view live operational logs.
+**General Commands:**
+*   `!ping`: Checks bot's responsiveness and replies with "Pong!" and current uptime.
+*   `!menu`: Displays the comprehensive command menu.
+*   `!contact`: Provides contact information for "Whiz" (`+254754783683`) and a link to the community WhatsApp group.
+*   `!source`: Get a link to the bot's source code repository.
+*   `!jid`: Replies with the JID of the current chat. If replying to a message in a group, also includes the JID of the quoted message's original sender.
+*   `!uptime`: Shows how long the bot has been running.
+
+**Media & Utility Commands:**
+*   `!sticker`: Reply to an image/video (or send an image/video with `!sticker` as caption) to create a sticker. (Pack: "𝐖𝐇𝐈𝐙-𝐌𝐃 Stickers", Author: "Whiz ❤️").
+*   `!toimg`: Reply to a sticker message to convert it back into an image (for static stickers) or a GIF-like video (for animated stickers).
+*   `!vv`: Reply to a view-once message (image or video) with `!vv`. The bot will download the media and send it back to you.
+*   `!save`: Reply to a message (e.g., a status you forwarded to the bot) with "save". The bot will forward the content of that replied-to message to the bot's own chat and to a pre-configured owner JID.
+*   `!ytsearch <query>`: Searches YouTube for the given query and returns the top 3 video results (title, duration, link).
+*   `!calc <expression>`: Evaluates a mathematical expression (e.g., `!calc (2+2)*5/2`).
+
+**Group Admin Commands (Bot must be an administrator in the group):**
+*   `!promote @user`: Promotes one or more @mentioned users to group admin.
+*   `!demote @user`: Demotes one or more @mentioned group admins.
+*   `!kick @user`: Removes one or more @mentioned users from the group.
+*   `!grouplink`: Retrieves and sends the current group's invite link.
+*   `!groupinfo`: Displays information about the current group (name, ID, participant count, owner, creation date).
+
+**Owner-Only Commands (Sender must match `OWNER_JID` in `.env` file):**
+*   `!delete`: Reply to a message sent *by the bot* with `!delete` to make the bot delete its own message.
+*   `!broadcast <message>`: Sends the provided message to all groups the bot is currently a member of. Includes a small delay between sends.
+*   `!restart`: Sends a confirmation message and then exits the bot process (requires an external process manager like PM2 to auto-restart).
+
+**Automatic Features:**
+*   **Auto Like Status**: Automatically reacts with a '🔥' emoji to new status updates from your contacts.
+*   **Startup Notification**: On successful connection, sends a message to its own number with greeting, name, repo/group links, and uptime.
+*   **Web Log Viewer**: A built-in web server (default: `http://localhost:3001/bot-log`) displays live operational logs.
+
+*(Auto View Statuses feature is currently under review for full Baileys implementation).*
 
 ## Prerequisites
 
 *   Node.js (v16 or higher recommended)
 *   NPM (usually comes with Node.js)
-*   A working WhatsApp account.
+*   A working WhatsApp account (preferably not your main personal account for botting).
 
 ## Setup and Running
 
 1.  **Clone the Repository:**
-    Get the code from [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro) or ensure all files are present if provided by Whiz.
+    Get the code from [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro).
     The main directory for the bot is `whiz-md-bot/`.
 
 2.  **Install Dependencies:**
@@ -28,16 +56,28 @@
     ```bash
     npm install
     ```
-    This will install `@whiskeysockets/baileys`, `express`, `ejs`, `dotenv`, `qrcode-terminal`, and other necessary packages.
+    This installs `@whiskeysockets/baileys`, `express`, `ejs`, `dotenv`, `qrcode-terminal`, `youtube-sr`, `mathjs`, and other packages.
 
-3.  **Configure Environment Variables (Optional):**
-    *   The bot primarily uses a local folder (`baileys_auth_info/`) for session persistence after the initial link.
-    *   You can optionally create a `.env` file (by copying `.env.example`) to set:
-        ```env
-        # Optional: Set a different port for the bot's web log viewer
-        # BOT_WEB_PORT=3001
+3.  **Configure Environment Variables:**
+    *   Copy the `.env.example` file to a new file named `.env` in the bot's root directory:
+        ```bash
+        cp .env.example .env
         ```
-    *   The `WHATSAPP_SESSION_ID` variable is **no longer used** with Baileys.
+    *   Open the `.env` file and configure the variables:
+        ```env
+        # Optional: Port for the bot's web log viewer (default: 3001)
+        # BOT_WEB_PORT=3001
+
+        # JID of the owner where saved statuses should also be forwarded (e.g., 2547xxxxxxxx@s.whatsapp.net)
+        # Used by the 'save' on reply feature.
+        OWNER_JID_FOR_STATUS_SAVES="your_number@s.whatsapp.net"
+
+        # Bot Owner's JID (e.g., 2547xxxxxxxx@s.whatsapp.net)
+        # Used for owner-only commands like !delete, !broadcast, !restart.
+        OWNER_JID="your_number@s.whatsapp.net"
+        ```
+        Replace `"your_number@s.whatsapp.net"` with the appropriate WhatsApp JIDs.
+    *   **Important:** Add `.env` to your `.gitignore` file if you use Git.
 
 4.  **Run the Bot & Link Your Account (First Time):**
     ```bash
@@ -47,33 +87,33 @@
     ```bash
     node index.js
     ```
-    *   **On the very first run (or if `baileys_auth_info/` is empty or deleted):** A QR code will be generated and displayed directly in your terminal/console.
-    *   **Scan this QR code** using your WhatsApp mobile application: Go to `WhatsApp Settings > Linked Devices > Link a Device`.
-    *   Once scanned, the bot will connect and save its authentication state in the `baileys_auth_info/` folder.
-    *   You should see log messages indicating connection progress and eventually "Connection opened successfully."
+    *   **On the first run (or if `baileys_auth_info/` is empty):** A QR code will appear in your terminal.
+    *   Scan this QR code using WhatsApp on your phone: `Settings > Linked Devices > Link a Device`.
+    *   The bot will connect and save its session in `baileys_auth_info/`.
 
 5.  **Subsequent Runs:**
-    *   Simply run `npm start` or `node index.js`. The bot will use the saved credentials in `baileys_auth_info/` to automatically reconnect without needing a new QR scan, as long as the session is still valid on WhatsApp's servers.
-    *   If you are logged out by WhatsApp (e.g., `DisconnectReason.loggedOut`), the bot will automatically delete the old `baileys_auth_info/` contents and generate a new QR code in the console for you to re-link.
+    *   Run `npm start`. The bot will use saved credentials in `baileys_auth_info/` to reconnect.
+    *   If logged out, a new QR will appear for re-linking.
 
 6.  **Accessing Web Log Viewer:**
-    *   Once the bot is running, you can view its live logs by navigating to `http://localhost:3001/bot-log` (or the port you configured via `BOT_WEB_PORT`) in your web browser.
+    *   Navigate to `http://localhost:3001/bot-log` (or your configured `BOT_WEB_PORT`).
 
 ## How it Works
 
-*   **Baileys Library**: Uses `@whiskeysockets/baileys` to connect directly to WhatsApp's WebSocket servers.
-*   **Authentication**: On first run, a QR code is displayed in the terminal for linking. Subsequent connections use saved session credentials from the `baileys_auth_info/` directory.
-*   **Web Log Viewer**: An integrated Express.js server collects important logs and serves them on a web page.
-*   **Event-Driven**: Listens for WhatsApp events (new messages, connection updates) to trigger actions.
+*   **Baileys Library**: Uses `@whiskeysockets/baileys` for direct WebSocket communication with WhatsApp.
+*   **Authentication**: Console QR for initial link; session credentials stored in `baileys_auth_info/` for reconnections.
+*   **Web Log Viewer**: Integrated Express.js server for real-time log monitoring.
+*   **Event-Driven**: Responds to WhatsApp events (new messages, connection updates).
 
 ## File Structure (`whiz-md-bot/`)
 
-*   `index.js`: Main application logic for the bot (Baileys client) and the web log server.
+*   `index.js`: Main bot logic (Baileys client, command handlers, Express server).
 *   `package.json`: Project metadata and dependencies.
-*   `.env.example`: Template for optional environment variables like `BOT_WEB_PORT`.
-*   `baileys_auth_info/`: Directory created by Baileys to store session credentials. **Consider adding this to your `.gitignore` file if you manage your code with Git.**
-*   `bot_views/log.ejs`: EJS template for the web log page.
+*   `.env.example`: Template for environment variables.
+*   `baileys_auth_info/`: Directory for Baileys session credentials. **Add to `.gitignore`**.
+*   `bot_views/log.ejs`: Template for the web log page.
 *   `bot_public/css/bot_style.css`: Stylesheet for the web log page.
+*   `logs.txt`: Plain text file where console logs are also appended.
 *   `README.md`: This file.
 
 ## Important Links
@@ -83,9 +123,10 @@
 
 ## Important Notes
 
-*   **WhatsApp Terms of Service**: Use responsibly. Automation can be against ToS.
-*   **Session Files**: The `baileys_auth_info/` directory contains sensitive session credentials. Keep this directory secure.
-*   **Error Handling**: Check console logs and the web log viewer for operational details and errors.
-*   **Console Output**: By default, Baileys may produce verbose logging in the console. This is normal and can be helpful for debugging. For advanced users, this can be customized by providing a configured Pino logger instance to Baileys if desired (current setup uses Baileys' default).
+*   **WhatsApp Terms of Service**: Use responsibly.
+*   **Session Files**: Keep `baileys_auth_info/` secure.
+*   **Admin Privileges**: For group management commands, the bot must be an admin in the group.
+*   **Owner Commands**: Ensure `OWNER_JID` is correctly set in `.env` for owner-restricted commands.
+*   **Console Output**: Baileys can be verbose in the console. Check the web log viewer for structured logs.
 
 Maintained by **Whiz**. Contact: `+254754783683`.
