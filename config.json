@@ -1,24 +1,13 @@
 {
-  "ownerName": "WHIZ",
-  "botName": "WHIZBOT PRO",
-  "prefixes": ["!", ".", "*", "/"],
-  "sessionName": "session",
+  "botname": "WHIZBotPro",
+  "ownername": "WHIZ",
+  "prefixes": ["!", ".", "*"],
   "repo": "https://github.com/twoem/whizbotpro",
-  "packname": "WHIZBOT PRO",
-  "author": "WHIZ",
-  "footer": "Made by WHIZ ⚙️",
-  "menu": {
-    "displayName": "🤖 WHIZBOT PRO COMMANDS 🤖",
-    "showPrefix": true,
-    "showOwner": true,
-    "showRepo": true,
-    "showUptime": true,
-    "showLineBorders": true,
-    "showDateTime": true
-  },
-  "autoRead": true,
-  "autoTyping": true,
-  "autoBio": false,
-  "themeEmoji": "🚀",
-  "defaultCooldown": 3
+  "commands": [
+    "ping", "menu", "help", "uptime", "owner", "repo",
+    "vv", "sticker", "fancy", "echo", "time", "date",
+    "day", "month", "year", "quote", "joke", "fact",
+    "weather", "ytmp3", "ytmp4", "tiktok", "ai", "speed",
+    "shorten", "news", "identity", "about", "bye"
+  ]
 }
