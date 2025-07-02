@@ -1,7 +1,7 @@
 {
   "name": "whiz-md-bot",
-  "version": "1.1.0",
-  "description": "WHIZ-MD: WhatsApp bot with extended functionalities and web log viewer.",
+  "version": "2.0.0",
+  "description": "WHIZ-MD: WhatsApp bot built with Baileys, featuring extended functionalities and a web log viewer.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -13,17 +13,17 @@
     "automation",
     "whiz",
     "whiz-md",
-    "multi-device"
+    "multi-device",
+    "baileys"
   ],
   "author": "Whiz",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
-    "qrcode-terminal": "^0.12.0",
-    "dotenv": "^16.3.1",
-    "puppeteer": "^21.9.0",
+    "@whiskeysockets/baileys": "^6.7.2",
     "express": "^4.18.2",
-    "ejs": "^3.1.9"
+    "ejs": "^3.1.9",
+    "dotenv": "^16.3.1",
+    "qrcode-terminal": "^0.12.0"
   }
 }

@@ -1,60 +1,45 @@
-# 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot
+# 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot (Powered by Baileys)
 
-𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and `whatsapp-web.js`. It offers a range of automation and utility features for your WhatsApp account, along with a web interface to view live bot logs.
+𝐖𝐇𝐈𝐙-𝐌𝐃 is a versatile WhatsApp bot built with Node.js and **`@whiskeysockets/baileys`**. This library allows for direct interaction with WhatsApp's servers, making the bot lighter and more stable by avoiding browser dependencies (like Puppeteer/Chromium). The bot offers automation and utility features, along with a web interface to view its live logs.
 
 ## Features
-(Features list remains as previously updated)
-1.  **Save View Once Media (`!vv` command)**: Reply to any view-once message (image or video) with the command `!vv`. The bot will download the media and send it back to you, effectively saving it.
-2.  **Auto View Status**: Automatically marks status updates from your contacts as viewed.
-3.  **Auto Like Status**: Automatically reacts with a '🔥' emoji to new status updates from your contacts.
-4.  **Contact Link (`!contact` command)**: Use the command `!contact` to receive contact information for "Whiz" (`+254754783683`) and a link to the community WhatsApp group.
-5.  **Bot Menu (`!menu` command)**: Use the command `!menu` to display a list of all available commands, features, repository link, and group link.
-6.  **Startup Notification**: When the bot successfully starts and connects to your WhatsApp, it sends a notification message to your own number, including a greeting, your WhatsApp profile name, the official repository link, the community group link, and its current uptime.
-7.  **Web Log Viewer**: A built-in web server provides a page (typically at `http://localhost:3001/bot-log`) to view live operational logs from the bot, including status updates, errors, and processed commands.
+
+1.  **Save View Once Media (`!vv` command)**: Reply to any view-once message (image or video) with `!vv`. The bot will download the media and send it back to you.
+2.  **Auto Like Status (Reactions)**: Automatically reacts with a '🔥' emoji to new status updates from your contacts. (Auto-viewing of statuses is currently under review for full Baileys implementation).
+3.  **Contact Link (`!contact` command)**: Use `!contact` to get contact information for "Whiz" (`+254754783683`) and a link to the community WhatsApp group.
+4.  **Bot Menu (`!menu` command)**: Use `!menu` to display a list of available commands, features, repository link, and group link.
+5.  **Startup Notification**: When the bot successfully connects to WhatsApp, it sends a notification message to your own number, including a greeting, your WhatsApp profile name, repository/group links, and its current uptime.
+6.  **Web Log Viewer**: A built-in web server provides a page (default: `http://localhost:3001/bot-log`) to view live operational logs.
 
 ## Prerequisites
 
 *   Node.js (v16 or higher recommended)
 *   NPM (usually comes with Node.js)
 *   A working WhatsApp account.
-*   A `SESSION_ID` obtained from the web-based **𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator** tool. This ID is a JSON string.
-*   **A working installation of Google Chrome (or another Chromium-based browser) is highly recommended if Puppeteer's automatic Chromium download fails.**
 
 ## Setup and Running
 
-1.  **Clone the repository (or ensure all files are present).**
-    *   The main directory for the bot is conceptually named `whiz-md-bot/`.
+1.  **Clone the Repository:**
+    Get the code from [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro) or ensure all files are present if provided by Whiz.
+    The main directory for the bot is `whiz-md-bot/`.
 
 2.  **Install Dependencies:**
     Open a terminal in the `whiz-md-bot/` directory and run:
     ```bash
     npm install
     ```
-    This command installs all necessary dependencies, including `puppeteer`. The `puppeteer` package will attempt to download its own version of Chromium. **If this download fails (e.g., due to network errors like `ECONNRESET`, firewall, or antivirus), please see the "Troubleshooting Puppeteer / Chromium Issues" section below.**
+    This will install `@whiskeysockets/baileys`, `express`, `ejs`, `dotenv`, `qrcode-terminal`, and other necessary packages.
 
-3.  **Configure Puppeteer (Browser Handling - IMPORTANT for Windows / Download Issues):**
-    *   **Default Behavior:** The bot will first try to use the Chromium version downloaded by the `puppeteer` npm package.
-    *   **Primary Workaround (If Chromium download fails): Use Your System's Chrome.**
-        If `npm install` fails to download Chromium or if you prefer to use your existing Chrome installation, you **must** set the `PUPPETEER_EXECUTABLE_PATH` environment variable.
-        1.  **Find your Chrome executable path:** (Same instructions as session generator: Windows, macOS, Linux)
-        2.  **Set `PUPPETEER_EXECUTABLE_PATH` Environment Variable (Persistently):** (Same instructions as session generator: Windows, Linux/macOS)
-        3.  **IMPORTANT: Close and re-open your command prompt/terminal** after setting the variable.
-    *   **(Optional) Skip Chromium Download by Puppeteer:** If you are consistently using `PUPPETEER_EXECUTABLE_PATH`, you can tell `npm install` not to download Chromium:
-        *   Set environment variable `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` before running `npm install`.
-        *   Or, create a file named `.npmrc` in the `whiz-md-bot/` project root with: `puppeteer_skip_chromium_download=true`. Then run `npm install`.
-
-4.  **Configure Bot Environment Variables:**
-    *   Copy the `.env.example` file to `.env`: `cp .env.example .env`
-    *   Open `.env` and add your `WHATSAPP_SESSION_ID` (the JSON string from the Session Generator, *without* `WHIZBOT_` prefix).
+3.  **Configure Environment Variables (Optional):**
+    *   The bot primarily uses a local folder (`baileys_auth_info/`) for session persistence after the initial link.
+    *   You can optionally create a `.env` file (by copying `.env.example`) to set:
         ```env
-        WHATSAPP_SESSION_ID="your_long_session_json_string_here"
         # Optional: Set a different port for the bot's web log viewer
         # BOT_WEB_PORT=3001
         ```
-    *   **Important:** Add `.env` to your `.gitignore` file.
+    *   The `WHATSAPP_SESSION_ID` variable is **no longer used** with Baileys.
 
-5.  **Run the Bot:**
-    After successful `npm install` and configuration:
+4.  **Run the Bot & Link Your Account (First Time):**
     ```bash
     npm start
     ```
@@ -62,43 +47,44 @@
     ```bash
     node index.js
     ```
-    Check console logs and the web log viewer (default: `http://localhost:3001/bot-log`). The console will indicate which Chrome/Chromium executable path is being used.
+    *   **On the very first run (or if `baileys_auth_info/` is empty or deleted):** A QR code will be generated and displayed directly in your terminal/console.
+    *   **Scan this QR code** using your WhatsApp mobile application: Go to `WhatsApp Settings > Linked Devices > Link a Device`.
+    *   Once scanned, the bot will connect and save its authentication state in the `baileys_auth_info/` folder.
+    *   You should see log messages indicating connection progress and eventually "Connection opened successfully."
+
+5.  **Subsequent Runs:**
+    *   Simply run `npm start` or `node index.js`. The bot will use the saved credentials in `baileys_auth_info/` to automatically reconnect without needing a new QR scan, as long as the session is still valid on WhatsApp's servers.
+    *   If you are logged out by WhatsApp (e.g., `DisconnectReason.loggedOut`), the bot will automatically delete the old `baileys_auth_info/` contents and generate a new QR code in the console for you to re-link.
+
+6.  **Accessing Web Log Viewer:**
+    *   Once the bot is running, you can view its live logs by navigating to `http://localhost:3001/bot-log` (or the port you configured via `BOT_WEB_PORT`) in your web browser.
 
 ## How it Works
-(Remains largely the same - Puppeteer note updated)
-*   **Session Management**: ...
-*   **Puppeteer**: Relies on Puppeteer. Now includes `puppeteer` as a direct dependency to manage its own Chromium, enhancing stability. Supports `PUPPETEER_EXECUTABLE_PATH` override.
-*   **Web Log Viewer**: ...
-*   **Command Handling**: ...
-*   **Status Automation**: ...
 
-## File Structure (Conceptual: `whiz-md-bot/`)
-(Remains the same)
+*   **Baileys Library**: Uses `@whiskeysockets/baileys` to connect directly to WhatsApp's WebSocket servers.
+*   **Authentication**: On first run, a QR code is displayed in the terminal for linking. Subsequent connections use saved session credentials from the `baileys_auth_info/` directory.
+*   **Web Log Viewer**: An integrated Express.js server collects important logs and serves them on a web page.
+*   **Event-Driven**: Listens for WhatsApp events (new messages, connection updates) to trigger actions.
+
+## File Structure (`whiz-md-bot/`)
+
+*   `index.js`: Main application logic for the bot (Baileys client) and the web log server.
+*   `package.json`: Project metadata and dependencies.
+*   `.env.example`: Template for optional environment variables like `BOT_WEB_PORT`.
+*   `baileys_auth_info/`: Directory created by Baileys to store session credentials. **Consider adding this to your `.gitignore` file if you manage your code with Git.**
+*   `bot_views/log.ejs`: EJS template for the web log page.
+*   `bot_public/css/bot_style.css`: Stylesheet for the web log page.
+*   `README.md`: This file.
 
 ## Important Links
-(Remains the same)
+
+*   **Repository:** [https://github.com/twoem/whizbotpro](https://github.com/twoem/whizbotpro)
+*   **WhatsApp Group:** [https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM](https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM)
 
 ## Important Notes
-(Remains largely the same)
 
-## Troubleshooting Puppeteer / Chromium Issues
-
-If you see errors like **"Could not find expected browser (chrome) locally"** or **`ECONNRESET` during `npm install`**, it means Puppeteer is having trouble with its Chromium browser.
-
-1.  **Primary Solution: Use `PUPPETEER_EXECUTABLE_PATH` (Recommended)**
-    *   Follow the detailed instructions in **Section 3 of "Setup and Running"** above to set this environment variable to point to your system's installed Google Chrome. This is the most reliable fix if the automatic download fails.
-    *   **Remember to restart your terminal after setting the variable.**
-
-2.  **Verify `npm install` for Bundled Chromium:**
-    *   The `puppeteer` package (now a direct dependency) attempts to download its own Chromium. If `PUPPETEER_EXECUTABLE_PATH` is *not* set, this bundled version is used.
-    *   If the download fails during `npm install` (check for `ECONNRESET` or other download errors in the `npm install` log), the bundled Chromium will be missing or corrupt.
-    *   **To fix a failed download of bundled Chromium:**
-        1.  Ensure no `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` environment variable is set.
-        2.  Delete `node_modules` and `package-lock.json`.
-        3.  Try `npm install` again, carefully watching for network errors, firewall/antivirus interference.
-
-3.  **`EPERM` or `EBUSY` errors during `npm install` or cleanup:**
-    *   These errors mean files or folders are locked.
-    *   **Solution:** Close any running instances of the application/bot. Close any lingering `node.exe` or `chrome.exe` processes (check Task Manager on Windows). Manually delete the `node_modules` folder. A system reboot can also help. Then try `npm install` again.
+*   **WhatsApp Terms of Service**: Use responsibly. Automation can be against ToS.
+*   **Session Files**: The `baileys_auth_info/` directory contains sensitive session credentials. Keep this directory secure.
+*   **Error Handling**: Check console logs and the web log viewer for operational details and errors.
 
 Maintained by **Whiz**. Contact: `+254754783683`.

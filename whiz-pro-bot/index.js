@@ -1,10 +1,18 @@
 require('dotenv').config(); // Load environment variables from .env file
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const fs = require('fs');
+const {
+    default: makeWASocket,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    makeInMemoryStore,
+    useMultiFileAuthState
+} = require('@whiskeysockets/baileys');
+const qrcodeTerminal = require('qrcode-terminal');
 const path = require('path');
-const puppeteer = require('puppeteer');
+const fs = require('fs');
 const express = require('express');
+// Puppeteer is no longer needed for the bot itself
+// const puppeteer = require('puppeteer');
 
 const startTime = new Date();
 
@@ -17,7 +25,7 @@ function addLog(message, type = 'INFO') {
     const logEntry = {
         timestamp: timestamp.toISOString(),
         type,
-        message: typeof message === 'object' ? JSON.stringify(message, null, 2) : String(message) // Ensure message is string
+        message: typeof message === 'object' ? JSON.stringify(message, null, 2) : String(message)
     };
 
     botLogs.push(logEntry);
@@ -27,187 +35,162 @@ function addLog(message, type = 'INFO') {
 
     const consoleMessage = `[${type}] ${timestamp.toLocaleTimeString()}: ${logEntry.message}`;
     switch (type) {
-        case 'ERROR':
-            console.error(consoleMessage);
-            break;
-        case 'WARNING':
-            console.warn(consoleMessage);
-            break;
-        case 'DEBUG':
-            console.debug(consoleMessage);
-            break;
-        default:
-            console.log(consoleMessage);
-            break;
+        case 'ERROR': console.error(consoleMessage); break;
+        case 'WARNING': console.warn(consoleMessage); break;
+        case 'DEBUG': console.debug(consoleMessage); break;
+        default: console.log(consoleMessage); break;
     }
 }
 // --- End Log Collection ---
 
-addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 Bot starting up..."); // Renamed
+addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 Bot (Baileys) starting up...");
 
-const DATA_PATH = path.join(__dirname, 'session_data');
-const CLIENT_ID = "WHIZ-MD"; // Renamed Client ID for LocalAuth
-let clientInitializationTimeoutId = null;
-
-if (!fs.existsSync(DATA_PATH)) {
-    addLog(`Data path ${DATA_PATH} does not exist, creating it.`, 'DEBUG');
-    fs.mkdirSync(DATA_PATH, { recursive: true });
+// Directory for Baileys authentication state
+const BAILEYS_AUTH_PATH = path.join(__dirname, 'baileys_auth_info');
+if (!fs.existsSync(BAILEYS_AUTH_PATH)) {
+    fs.mkdirSync(BAILEYS_AUTH_PATH, { recursive: true });
+    addLog(`Created Baileys auth directory: ${BAILEYS_AUTH_PATH}`, 'DEBUG');
 }
 
-const SESSION_ID_CONTENT = process.env.WHATSAPP_SESSION_ID;
+// Global variable for the Baileys socket
+let sock = null;
 
-if (SESSION_ID_CONTENT) {
-    addLog('WHATSAPP_SESSION_ID found. Attempting to write it for LocalAuth...');
-    const sessionFilePath = path.join(DATA_PATH, `session-${CLIENT_ID}.json`); // Uses new CLIENT_ID
-    try {
-        fs.writeFileSync(sessionFilePath, SESSION_ID_CONTENT, 'utf-8');
-        addLog(`Session data written to ${sessionFilePath}`);
-    } catch (err) {
-        addLog(`Failed to write session data: ${err.message}. Proceeding without pre-filled session.`, 'ERROR');
-    }
-} else {
-    addLog('WHATSAPP_SESSION_ID not found. LocalAuth will attempt to use existing session or create a new one.', 'WARNING');
-}
+async function connectToWhatsApp() {
+    addLog('[BAILEYS_CONNECT] Attempting to connect to WhatsApp...');
 
-// --- Puppeteer Options ---
-const puppeteerArgs = [
-    '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-    '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--disable-gpu'
-];
-const puppeteerOptions = { headless: true, args: puppeteerArgs };
-let determinedExecutablePath = null;
+    const { state, saveCreds } = await useMultiFileAuthState(BAILEYS_AUTH_PATH);
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    addLog(`[BAILEYS_CONNECT] Using Baileys version: ${version.join('.')}, isLatest: ${isLatest}`);
 
-try {
-    determinedExecutablePath = puppeteer.executablePath();
-    addLog(`[BOT_INIT] Default executable path from Puppeteer module: ${determinedExecutablePath}`);
-} catch (e) {
-    addLog(`[BOT_INIT] Warning: Could not retrieve executable path from Puppeteer module: ${e.message}. This might happen if Puppeteer installation is incomplete.`, 'WARNING');
-    determinedExecutablePath = null;
-}
+    sock = makeWASocket({
+        version,
+        printQRInTerminal: true, // Output QR to terminal
+        auth: state,
+        browser: ['𝐖𝐇𝐈𝐙-𝐌𝐃', 'Chrome', '120.0'], // Browser name for WhatsApp Web
+        logger: { info: () => {}, error: console.error, warn: console.warn, debug: () => {} }, // Basic pino logger
+        // To prevent pino from flooding console, customize or use a more robust logger later
+        // getMessage: async key => { return { conversation: 'hello' } } // Example, for message retries
+    });
 
-if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    addLog(`[BOT_INIT] Using custom executable path for Puppeteer (from env var OVERRIDE): ${puppeteerOptions.executablePath}`);
-} else if (determinedExecutablePath) {
-    puppeteerOptions.executablePath = determinedExecutablePath;
-    addLog(`[BOT_INIT] Using executable path from Puppeteer module: ${puppeteerOptions.executablePath}`);
-} else {
-    addLog(`[BOT_INIT] No executable path from Puppeteer module and no override. Relying on puppeteer-core's default search (might fail if system Chrome not found).`, 'WARNING');
-}
-addLog(`[BOT_INIT] Puppeteer final options: ${JSON.stringify(puppeteerOptions)}`);
-// --- End Puppeteer Options ---
+    // Handle connection updates
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-const client = new Client({
-    authStrategy: new LocalAuth({ clientId: CLIENT_ID, dataPath: DATA_PATH }), // Uses new CLIENT_ID
-    puppeteer: puppeteerOptions,
-});
-
-const clearClientInitializationTimeout = () => {
-    if (clientInitializationTimeoutId) {
-        clearTimeout(clientInitializationTimeoutId);
-        clientInitializationTimeoutId = null;
-        addLog('[BOT_INIT] Client initialization timeout cleared.', 'DEBUG');
-    }
-};
-
-client.on('qr', (qr) => {
-    addLog('[BOT_QR] QR RECEIVED - This means the bot needs to be linked or the session is invalid.', 'WARNING');
-    if (!SESSION_ID_CONTENT) {
-        addLog('[BOT_QR] No SESSION_ID was provided. Please scan the QR to generate a session, then use that for future runs.');
-    } else {
-        addLog('[BOT_QR] A SESSION_ID was provided but is likely invalid. Please generate a new one using Whiz Session Generator.', 'WARNING');
-    }
-    clearClientInitializationTimeout();
-});
-
-client.on('authenticated', () => {
-    addLog('[BOT_AUTH] AUTHENTICATED. Session is active.');
-    clearClientInitializationTimeout();
-});
-
-client.on('auth_failure', msg => {
-    addLog(`[BOT_AUTH_FAILURE] AUTHENTICATION FAILURE: ${String(msg)}`, 'ERROR'); // Ensure msg is string
-    addLog(`[BOT_AUTH_FAILURE] Failed to authenticate. If you provided a SESSION_ID, it might be invalid or corrupted. Path: ${path.join(DATA_PATH, `session-${CLIENT_ID}.json`)}`, 'ERROR');
-    clearClientInitializationTimeout();
-    process.exit(1);
-});
-
-client.on('ready', async () => {
-    addLog('[BOT_READY] 𝐖𝐇𝐈𝐙-𝐌𝐃 client is ready!'); // Renamed
-    clearClientInitializationTimeout();
-    try {
-        const clientInfoUser = client.info.me?.user || "UnknownUser";
-        const clientInfoPushname = client.info.pushname || clientInfoUser;
-
-        addLog(`[BOT_READY] Logged in as: ${clientInfoUser}`);
-        addLog(`[BOT_READY] Bot Name/Number: ${clientInfoPushname}`);
-
-        const userName = clientInfoPushname;
-        const now = new Date();
-        const uptimeMs = now - startTime;
-        let uptimeString = "";
-        const seconds = Math.floor((uptimeMs / 1000) % 60);
-        const minutes = Math.floor((uptimeMs / (1000 * 60)) % 60);
-        const hours = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
-        const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
-        if (days > 0) uptimeString += `${days}d `;
-        if (hours > 0) uptimeString += `${hours}h `;
-        if (minutes > 0) uptimeString += `${minutes}m `;
-        uptimeString += `${seconds}s`;
-        if (uptimeString.trim() === "0s") uptimeString = "just now";
-
-        const startupMessage = `Hello ${userName} 🤗\nYour Bot (𝐖𝐇𝐈𝐙-𝐌𝐃) is running perfectly 💥\nRepo: https://github.com/twoem/whizbotpro\nUptime: ${uptimeString}\nGroup: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM`; // Added Group Link
-
-        if (client.info.me?.user) {
-            await client.sendMessage(client.info.me.user, startupMessage);
-            addLog("[BOT_READY] Startup notification sent successfully to self.");
-        } else {
-            addLog("[BOT_READY] Could not send startup message: client.info.me.user is not defined.", 'WARNING');
+        if (qr) {
+            addLog('[BAILEYS_CONNECT] QR code received. Scan with your WhatsApp mobile app.');
+            qrcodeTerminal.generate(qr, { small: true }, (qrString) => {
+                addLog('QR code displayed in terminal (first 2 lines):\n' + qrString.split('\n').slice(0,2).join('\n'), 'DEBUG');
+            });
         }
-    } catch (err) {
-        addLog(`[BOT_READY] Error during 'ready' event processing: ${err.message}`, 'ERROR');
-    }
-});
 
-client.on('disconnected', (reason) => {
-    addLog(`[BOT_DISCONNECTED] Client was logged out: ${String(reason)}`, 'WARNING'); // Ensure reason is string
-    clearClientInitializationTimeout();
-    process.exit(1);
-});
+        if (connection === 'close') {
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
+            addLog(`[BAILEYS_CONNECT] Connection closed. Status Code: ${statusCode}, Reason: ${DisconnectReason[statusCode] || 'Unknown'}`, 'WARNING');
 
-client.on('error', err => {
-    addLog(`[BOT_ERROR] Client error: ${err.message}`, 'ERROR');
-    clearClientInitializationTimeout();
-});
-
-client.on('message', async (msg) => {
-    try {
-        if (msg.body.toLowerCase() === '!vv') {
-            addLog(`[MSG_HANDLER] Received !vv command from ${msg.from}`);
-            if (msg.hasQuotedMsg) {
-                const quotedMsg = await msg.getQuotedMessage();
-                if (quotedMsg && quotedMsg.isViewOnce && quotedMsg.hasMedia) {
-                    const media = await quotedMsg.downloadMedia();
-                    if (media) {
-                        await client.sendMessage(msg.from, media, { caption: 'Here is the view-once media you requested! ✨ (from 𝐖𝐇𝐈𝐙-𝐌𝐃)' });
-                        await msg.reply("Got it! ✨ The view-once media has been captured and sent to you by 𝐖𝐇𝐈𝐙-𝐌𝐃.");
-                        addLog(`[MSG_HANDLER] Successfully processed !vv for view-once media for ${msg.from}`);
-                    } else {
-                        await msg.reply("Oops! Something went wrong while trying to capture the media. 😥 Please try again. (Media download failed) - 𝐖𝐇𝐈𝐙-𝐌𝐃");
-                        addLog(`[MSG_HANDLER] Failed to download media for !vv from ${msg.from}`, 'ERROR');
+            if (statusCode === DisconnectReason.loggedOut) {
+                addLog('[BAILEYS_CONNECT] Logged out. Deleting auth info and attempting to reconnect for new QR.', 'ERROR');
+                try {
+                    // fs.rmSync(BAILEYS_AUTH_PATH, { recursive: true, force: true }); // Risky if path is wrong
+                    // More controlled deletion:
+                    const files = fs.readdirSync(BAILEYS_AUTH_PATH);
+                    for (const file of files) {
+                        fs.unlinkSync(path.join(BAILEYS_AUTH_PATH, file));
                     }
-                } else {
-                    await msg.reply("Hmm, it seems you didn't reply to a view-once message with media. Please use !vv as a reply to a view-once image or video. 🤔 - 𝐖𝐇𝐈𝐙-𝐌𝐃");
+                    addLog('Old auth files deleted.', 'INFO');
+                } catch (err) {
+                    addLog(`Error deleting auth files: ${err.message}`, 'ERROR');
                 }
+                connectToWhatsApp(); // Reconnect to generate new QR
+            } else if (statusCode === DisconnectReason.connectionClosed ||
+                       statusCode === DisconnectReason.connectionLost ||
+                       statusCode === DisconnectReason.timedOut ||
+                       statusCode === DisconnectReason.restartRequired) {
+                addLog('[BAILEYS_CONNECT] Connection issue, attempting to reconnect...', 'WARNING');
+                connectToWhatsApp();
+            } else if (statusCode === DisconnectReason.badSession) {
+                 addLog('[BAILEYS_CONNECT] Bad session file. Deleting auth info and attempting to reconnect for new QR.', 'ERROR');
+                 try {
+                    const files = fs.readdirSync(BAILEYS_AUTH_PATH);
+                    for (const file of files) {
+                        fs.unlinkSync(path.join(BAILEYS_AUTH_PATH, file));
+                    }
+                    addLog('Old auth files deleted due to bad session.', 'INFO');
+                } catch (err) {
+                    addLog(`Error deleting auth files for bad session: ${err.message}`, 'ERROR');
+                }
+                connectToWhatsApp();
             } else {
-                await msg.reply("Please reply to a view-once message with `!vv` to save it. - 𝐖𝐇𝐈𝐙-𝐌𝐃");
+                addLog(`[BAILEYS_CONNECT] Unhandled disconnect reason: ${statusCode}. Not attempting to reconnect automatically. Please check logs and restart manually if needed.`, 'ERROR');
             }
-            return;
+        } else if (connection === 'open') {
+            addLog('[BAILEYS_CONNECT] Connection opened successfully. 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot is now online!');
+            // --- Startup Notification Logic (will be fully implemented in Step 3 of Baileys plan) ---
+            try {
+                const botJid = sock.user?.id;
+                if (botJid) {
+                    const userName = sock.user?.name || sock.user?.notify || botJid.split('@')[0];
+                    const now = new Date();
+                    const uptimeMs = now - startTime;
+                    let uptimeString = "";
+                    const totalSeconds = Math.floor(uptimeMs / 1000);
+                    const days = Math.floor(totalSeconds / 86400);
+                    const hours = Math.floor((totalSeconds % 86400) / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+
+                    if (days > 0) uptimeString += `${days}d `;
+                    if (hours > 0) uptimeString += `${hours}h `;
+                    if (minutes > 0) uptimeString += `${minutes}m `;
+                    uptimeString += `${seconds}s`;
+                    if (uptimeString.trim() === "0s") uptimeString = "just now";
+
+                    const startupMessage = `Hello ${userName} 🤗\nYour Bot (𝐖𝐇𝐈𝐙-𝐌𝐃 with Baileys) is running perfectly 💥\nRepo: https://github.com/twoem/whizbotpro\nUptime: ${uptimeString}\nGroup: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM`;
+                    await sock.sendMessage(botJid, { text: startupMessage });
+                    addLog("[BAILEYS_CONNECT] Startup notification sent to self.");
+                } else {
+                     addLog("[BAILEYS_CONNECT] Could not determine bot JID for startup message.", 'WARNING');
+                }
+            } catch (err) {
+                addLog(`[BAILEYS_CONNECT] Error sending startup notification: ${err.message}`, 'ERROR');
+            }
+            // --- End Startup Notification ---
+        }
+    });
+
+    // Save credentials when updated
+    sock.ev.on('creds.update', saveCreds);
+
+    // Message handling and other features will be attached here in the next step
+    // e.g., sock.ev.on('messages.upsert', ...)
+
+
+    // --- Message Handler ---
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        if (!messages || messages.length === 0) return;
+        const msg = messages[0]; // Process the first message in the upsert
+
+        // Ensure message has content and is not from the bot itself
+        if (!msg.message || msg.key.fromMe) return;
+
+        const remoteJid = msg.key.remoteJid;
+        let textContent = '';
+
+        if (msg.message.conversation) {
+            textContent = msg.message.conversation;
+        } else if (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) {
+            textContent = msg.message.extendedTextMessage.text;
+        } else if (msg.message.imageMessage && msg.message.imageMessage.caption) {
+            textContent = msg.message.imageMessage.caption;
+        } else if (msg.message.videoMessage && msg.message.videoMessage.caption) {
+            textContent = msg.message.videoMessage.caption;
         }
 
-        if (msg.body.toLowerCase() === '!menu') {
-            addLog(`[MSG_HANDLER] Received !menu command from ${msg.from}`);
-            const menuText = `
+        const command = textContent.toLowerCase().trim();
+
+        try {
+            if (command === '!menu') {
+                addLog(`[MSG_HANDLER] Received !menu command from ${remoteJid}`);
+                const menuText = `
 *𝐖𝐇𝐈𝐙-𝐌𝐃 Bot Menu* 🤖
 
 *Commands:*
@@ -215,76 +198,127 @@ client.on('message', async (msg) => {
 - \`!contact\` : Get the admin's contact link.
 - \`!menu\` : Show this menu.
 
-*Automatic Features:*
-- Auto View Status: Automatically views status updates from your contacts.
-- Auto Like Status: Automatically likes status updates with a '🔥' emoji.
+*Automatic Features (Baileys):*
+- Auto View Status: (Under Review for Baileys)
+- Auto Like Status (Reactions): (Under Review for Baileys)
 
 Stay tuned for more features!
 Repo: https://github.com/twoem/whizbotpro
 Group: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM
-            `;
-            await client.sendMessage(msg.from, menuText.trim());
-            addLog(`[MSG_HANDLER] Sent menu to ${msg.from}`);
-            return;
-        }
-
-        if (msg.id.remote === 'status@broadcast' && msg.author) {
-            addLog(`[STATUS] New status detected from contact: ${msg.author} (ID: ${msg.id.id})`);
-            try {
-                await client.sendSeen(msg.author);
-                addLog(`[STATUS] Status from ${msg.author} marked as seen.`);
-                try {
-                    await msg.react('🔥');
-                    addLog(`[STATUS] Reacted with '🔥' to status from ${msg.author} (ID: ${msg.id.id})`);
-                } catch (reactErr) {
-                    addLog(`[STATUS] Failed to react to status from ${msg.author}: ${reactErr.message}`, 'ERROR');
-                }
-            } catch (err) {
-                addLog(`[STATUS] Failed to mark status from ${msg.author} as seen or react: ${err.message}`, 'ERROR');
+                `;
+                await sock.sendMessage(remoteJid, { text: menuText.trim() });
+                addLog(`[MSG_HANDLER] Sent menu to ${remoteJid}`);
+                return;
             }
+
+            if (command === '!contact') {
+                addLog(`[MSG_HANDLER] Received !contact command from ${remoteJid}`);
+                const contactOwner = "Whiz";
+                const contactNumber = "254754783683";
+                const contactLink = `https://wa.me/${contactNumber}`;
+                const contactMessage = `You can reach out to the owner (${contactOwner}) here: ${contactLink}\nFor community support, join our WhatsApp group: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM`;
+                await sock.sendMessage(remoteJid, { text: contactMessage });
+                addLog(`[MSG_HANDLER] Sent contact link to ${remoteJid}`);
+                return;
+            }
+
+            // --- !vv (View Once) Command for Baileys ---
+            if (command === '!vv') {
+                addLog(`[MSG_HANDLER] Received !vv command from ${remoteJid}`);
+                const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+                const quotedMsgKey = msg.message?.extendedTextMessage?.contextInfo?.stanzaId; // Key of the quoted message
+
+                if (quoted && quotedMsgKey) {
+                    // Check if the quoted message is a view-once message
+                    const viewOnceMsg = quoted.viewOnceMessage || quoted.viewOnceMessageV2 || quoted.viewOnceMessageV2Extension || quoted.ephemeralMessage?.message?.viewOnceMessage || quoted.ephemeralMessage?.message?.viewOnceMessageV2;
+
+                    if (viewOnceMsg && (viewOnceMsg.message?.imageMessage || viewOnceMsg.message?.videoMessage)) {
+                        try {
+                            // Construct a minimal message object for downloadMediaMessage
+                            // It needs the actual message part (imageMessage/videoMessage) that was inside viewOnce
+                            const mediaMsgForDownload = viewOnceMsg.message;
+
+                            // Ensure it's not an empty object before trying to download
+                            if (Object.keys(mediaMsgForDownload).length === 0) {
+                                 throw new Error("Quoted message content for view-once is empty.");
+                            }
+
+                            addLog(`[MSG_HANDLER] Attempting to download view-once media for ${remoteJid}. QuotedStanzaId: ${quotedMsgKey}`, 'DEBUG');
+                            const buffer = await downloadMediaMessage(
+                                { key: { remoteJid: remoteJid, id: quotedMsgKey, fromMe: false }, message: { viewOnceMessage: viewOnceMsg } }, // Simplified key, might need original key if from other user
+                                'buffer',
+                                {},
+                                { logger: { info:()=>{}, error:console.error, warn:console.warn }, reuploadRequest: sock.updateMediaMessage }
+                            );
+
+                            let messageType = viewOnceMsg.message.imageMessage ? { image: buffer } : { video: buffer };
+                            await sock.sendMessage(remoteJid, {
+                                ...messageType,
+                                caption: 'Here is the view-once media you requested! ✨ (from 𝐖𝐇𝐈𝐙-𝐌𝐃)'
+                            });
+                            await sock.sendMessage(remoteJid, { text: "Got it! ✨ The view-once media has been captured and sent to you by 𝐖𝐇𝐈𝐙-𝐌𝐃." });
+                            addLog(`[MSG_HANDLER] Successfully processed !vv for view-once media for ${remoteJid}`);
+
+                        } catch (dlError) {
+                            addLog(`[MSG_HANDLER] Failed to download or send view-once media for ${remoteJid}: ${dlError.message}`, 'ERROR');
+                            console.error(dlError); // Log full error for debugging
+                            await sock.sendMessage(remoteJid, { text: "Oops! Something went wrong while trying to capture the media. 😥 Please try again. (Download/Send Failed) - 𝐖𝐇𝐈𝐙-𝐌𝐃" });
+                        }
+                    } else {
+                        await sock.sendMessage(remoteJid, { text: "Hmm, it seems you didn't reply to a view-once image or video. Please use `!vv` as a reply. 🤔 - 𝐖𝐇𝐈𝐙-𝐌𝐃" });
+                    }
+                } else {
+                    await sock.sendMessage(remoteJid, { text: "Please reply to a view-once message with `!vv` to save it. - 𝐖𝐇𝐈𝐙-𝐌𝐃" });
+                }
+                return;
+            }
+            // --- End !vv Command ---
+
+            // --- Auto Like Status (Reactions) ---
+            if (remoteJid === 'status@broadcast' && msg.key.participant) {
+                // msg.key.participant is the JID of the contact who posted the status
+                addLog(`[STATUS] New status detected from contact: ${msg.key.participant} (Msg ID: ${msg.key.id})`);
+                try {
+                    // Send reaction to the status message
+                    await sock.sendMessage(remoteJid, {
+                        react: {
+                            text: '🔥',
+                            key: msg.key
+                        }
+                    });
+                    addLog(`[STATUS] Reacted with '🔥' to status from ${msg.key.participant} (Msg ID: ${msg.key.id})`);
+
+                    // Auto-viewing (sending read receipt) is more complex and deferred.
+                    // Example of what it might look like (NEEDS TESTING & REFINEMENT):
+                    // await sock.sendReceipt(remoteJid, msg.key.participant, [msg.key.id], 'read');
+                    // addLog(`[STATUS] Marked status from ${msg.key.participant} as read.`);
+
+                } catch (statusErr) {
+                    addLog(`[STATUS] Failed to react or mark status as read for ${msg.key.participant}: ${statusErr.message}`, 'ERROR');
+                }
+                // Do not return here, as a status message might also be a command if someone captions it with !menu etc. (unlikely but possible)
+                // However, for status@broadcast, we typically don't expect further command processing.
+            }
+            // --- End Auto Like Status ---
+
+
+        } catch (error) {
+            addLog(`[MSG_HANDLER] Error processing command '${command}' from ${remoteJid}: ${error.message}`, 'ERROR');
+            // await sock.sendMessage(remoteJid, { text: "Sorry, an error occurred." }); // Optional
         }
+    });
+    // --- End Message Handler ---
 
-        if (msg.body.toLowerCase() === '!contact') {
-            addLog(`[MSG_HANDLER] Received !contact command from ${msg.from}`);
-            const contactOwner = "Whiz";
-            const contactNumber = "254754783683";
-            const contactLink = `https://wa.me/${contactNumber}`;
-            const contactMessage = `You can reach out to the owner (${contactOwner}) here: ${contactLink}\nFor community support, join our WhatsApp group: https://chat.whatsapp.com/JLmSbTfqf4I2Kh4SNJcWgM`;
-            await client.sendMessage(msg.from, contactMessage);
-            addLog(`[MSG_HANDLER] Sent contact link to ${msg.from}`);
-            return;
-        }
-    } catch (error) {
-        addLog(`[MSG_HANDLER] General error processing message from ${msg.from}: ${error.message}`, 'ERROR');
-    }
-});
 
-addLog("[BOT_INIT] Initializing WhatsApp client...");
-const BOT_INIT_TIMEOUT_DURATION = 90000;
+    return sock;
+}
 
-clientInitializationTimeoutId = setTimeout(async () => {
-    if (clientInitializationTimeoutId) {
-        addLog(`[BOT_INIT] Initialization TIMEOUT after ${BOT_INIT_TIMEOUT_DURATION/1000}s. The client did not become ready or fail explicitly.`, 'ERROR');
-        addLog("[BOT_INIT] This could be due to an issue with Puppeteer launch, network connection to WhatsApp, or an invalid session.", 'ERROR');
-        addLog("[BOT_INIT] If a SESSION_ID was provided, it might be stale. Try generating a new one.", 'ERROR');
-        addLog("[BOT_INIT] If no SESSION_ID, ensure you can scan a QR if one appears (check logs for QR_RECEIVED).", 'ERROR');
-        addLog("[BOT_INIT] Exiting due to timeout.", 'ERROR');
-        process.exit(1);
-    }
-}, BOT_INIT_TIMEOUT_DURATION);
+// --- Message Handling & Features (To be re-implemented with Baileys API in next step) ---
+// Old client.on('message', ...) logic needs to be adapted to sock.ev.on('messages.upsert', ...)
+// For now, this section is placeholder for Baileys message handling.
+// addLog("[BAILEYS_MSG_HANDLER] Message handler logic will be implemented here."); // This can be removed
 
-client.initialize().then(() => {
-    addLog("[BOT_INIT] client.initialize() promise resolved. Waiting for 'ready' or 'authenticated' event.");
-}).catch(err => {
-    clearClientInitializationTimeout();
-    addLog(`[BOT_INIT] Failed to initialize client: ${err.message}`, 'ERROR');
-    if (err.message && err.message.includes("session data file is corrupted")) {
-        addLog(`[BOT_INIT] Session file at ${path.join(DATA_PATH, `session-${CLIENT_ID}.json`)} is corrupted. Please delete it and try to link again or provide a fresh SESSION_ID.`, 'ERROR');
-    }
-    process.exit(1);
-});
-
-// --- Express Web Server for Bot Logs ---
+// --- Express Web Server for Bot Logs (Largely unchanged) ---
 const app = express();
 const BOT_WEB_PORT = process.env.BOT_WEB_PORT || 3001;
 
@@ -308,25 +342,37 @@ app.listen(BOT_WEB_PORT, () => {
 });
 // --- End Express Web Server ---
 
+// Graceful shutdown
 const cleanup = async () => {
     addLog("Caught interrupt signal for 𝐖𝐇𝐈𝐙-𝐌𝐃. Shutting down gracefully...");
-    clearClientInitializationTimeout();
-    if (client) {
+    if (sock) {
         try {
-            if (client.pupBrowser) {
-                await client.destroy();
-                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client destroyed.");
-            } else {
-                addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 WhatsApp client (or its browser) was not fully initialized, skipping destroy call.");
-            }
+            // Baileys doesn't have a .destroy() like wwebjs. It just closes the socket.
+            // useMultiFileAuthState handles saving creds on update.
+            // We might want to explicitly end the socket if needed.
+            await sock.logout(); // Or sock.end(new Error('Shutdown'))
+            addLog("𝐖𝐇𝐈𝐙-𝐌𝐃 Baileys client logged out/ended.");
         } catch (err) {
-            addLog(`Error destroying 𝐖𝐇𝐈𝐙-𝐌𝐃 client during cleanup: ${err.message}`, 'ERROR');
+            addLog(`Error during Baileys client cleanup: ${err.message}`, 'ERROR');
         }
     }
+    // Clean up auth info directory on SIGINT can be risky if not handled well.
+    // For now, let's not auto-delete on every shutdown.
+    // if (fs.existsSync(BAILEYS_AUTH_PATH)) {
+    //     fs.rmSync(BAILEYS_AUTH_PATH, { recursive: true, force: true });
+    //     addLog('Baileys auth info deleted on shutdown.');
+    // }
     process.exit(0);
 };
 
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 
-addLog("Core logic for 𝐖𝐇𝐈𝐙-𝐌𝐃 setup complete. Client is initializing...");
+// Start the connection process
+connectToWhatsApp().catch(err => {
+    addLog(`[BAILEYS_CONNECT] Failed to connect to WhatsApp initially: ${err.message}`, 'ERROR');
+    // Depending on the error, might want to exit or retry after a delay
+    // For now, if initial connect fails badly, it might just exit from an unhandled rejection
+});
+
+addLog("Core logic for 𝐖𝐇𝐈𝐙-𝐌𝐃 (Baileys) setup complete. Attempting to connect...");

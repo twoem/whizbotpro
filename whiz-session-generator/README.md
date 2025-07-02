@@ -1,6 +1,13 @@
-# 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator (Web Application)
+# 𝐖𝐇𝐈𝐙-𝐌𝐃 Session Generator (Web Application) - For `whatsapp-web.js` Based Projects
 
-This web application generates a WhatsApp `SESSION_ID` for the **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot**. It guides you through linking a new device to your WhatsApp account using either a QR code or a phone number pairing code, with a user interface inspired by modern web QR linking pages (e.g., `SuhailTechInfo/web-qr`).
+**IMPORTANT NOTE:** This Session Generator creates session IDs specifically for bots and applications built using the `whatsapp-web.js` library (which automates WhatsApp Web via a browser like Chromium).
+The current **𝐖𝐇𝐈𝐙-𝐌𝐃 Bot** has been refactored to use **`@whiskeysockets/baileys`**, which does NOT use this type of session ID and handles its authentication differently (typically via a QR code scanned directly in the console when the bot starts).
+**Therefore, this session generator is NOT needed and is NOT compatible with the latest Baileys-based 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot.**
+This project is retained for potential use with other `whatsapp-web.js` projects or for historical reference.
+
+---
+
+This web application generates a WhatsApp `SESSION_ID` for `whatsapp-web.js` based applications. It guides you through linking a new device to your WhatsApp account using either a QR code or a phone number pairing code, with a user interface inspired by modern web QR linking pages (e.g., `SuhailTechInfo/web-qr`).
 
 Once linked, the tool captures the session information and sends it as two messages to your own WhatsApp number:
 1.  The Session ID string, prefixed with `WHIZBOT_`.
