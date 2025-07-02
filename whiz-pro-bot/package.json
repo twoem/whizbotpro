@@ -12,7 +12,11 @@
     "bot",
     "automation"
   ],
-  "author": "",
+  "author": "Jules AI",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0"
+  }
 }

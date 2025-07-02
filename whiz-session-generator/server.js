@@ -157,10 +157,19 @@ const initializeWhatsAppClientForQR = () => {
     }
     console.log(`[QR_INIT] Creating new Client instance for QR.`);
     const puppeteerArgsQR = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+    const puppeteerOptions = { headless: true, args: puppeteerArgsQR };
+
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log(`[QR_INIT] Using custom executable path for Puppeteer: ${puppeteerOptions.executablePath}`);
+    } else {
+        console.log(`[QR_INIT] Using default Puppeteer Chromium download.`);
+    }
     console.log(`[QR_INIT] Puppeteer args: ${JSON.stringify(puppeteerArgsQR)}`);
+
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: "whiz-qr-linker", dataPath: SESSION_DATA_PATH_QR }),
-        puppeteer: { headless: true, args: puppeteerArgsQR },
+        puppeteer: puppeteerOptions,
     });
     console.log(`[QR_INIT] Client instance for QR created. Attaching event listeners.`);
 
@@ -273,10 +282,19 @@ const initializeWhatsAppClientForPairing = (phoneNumber) => {
     const clientId = `whiz-pairing-linker-${phoneNumber}`;
     console.log(`[PAIRING_INIT ${phoneNumber}] Creating new Client instance with clientId: ${clientId}`);
     const puppeteerArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+    const puppeteerOptions = { headless: true, args: puppeteerArgs };
+
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log(`[PAIRING_INIT ${phoneNumber}] Using custom executable path for Puppeteer: ${puppeteerOptions.executablePath}`);
+    } else {
+        console.log(`[PAIRING_INIT ${phoneNumber}] Using default Puppeteer Chromium download.`);
+    }
     console.log(`[PAIRING_INIT ${phoneNumber}] Puppeteer args: ${JSON.stringify(puppeteerArgs)}`);
+
     pairingCodeClient = new Client({
         authStrategy: new LocalAuth({ clientId: clientId, dataPath: SESSION_DATA_PATH_PAIRING }),
-        puppeteer: { headless: true, args: puppeteerArgs },
+        puppeteer: puppeteerOptions,
     });
     console.log(`[PAIRING_INIT ${phoneNumber}] Client instance created. Attaching event listeners.`);
 

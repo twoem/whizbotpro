@@ -96,4 +96,50 @@ This `SESSION_ID` (the JSON string, without the `WHIZBOT_` prefix) is then used 
 *   **Error Handling**: Basic error handling is implemented. If you encounter persistent issues, check the server console logs.
 *   **Headless Environment**: Puppeteer arguments are configured for a headless Linux environment. Adjustments or additional system dependencies might be needed for other operating systems.
 
+## Troubleshooting
+
+### Error: "Could not find expected browser (chrome) locally."
+
+This is the most common error and means that Puppeteer (used by `whatsapp-web.js`) could not find a compatible version of Chromium to use.
+
+1.  **Ensure `npm install` Completed Successfully:**
+    *   The `npm install` command is supposed to download a specific version of Chromium that Puppeteer needs. This download can sometimes fail due to network issues, firewalls, or antivirus software.
+    *   When you run `npm install`, carefully check the output for any errors, especially messages related to "Puppeteer" or "Chromium download".
+
+2.  **Force Re-download of Chromium:**
+    *   If you suspect Chromium didn't download correctly:
+        1.  Delete the `node_modules` folder in your `whiz-session-generator` directory.
+        2.  Delete the `package-lock.json` file (if it exists).
+        3.  Run `npm install` again from your terminal within the `whiz-session-generator` directory. Monitor the output closely.
+
+3.  **Check Environment Variables:**
+    *   Ensure you don't have an environment variable `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` set to `true` (or `1`), as this would prevent the download.
+
+4.  **Use a System-Installed Chrome/Chromium via `PUPPETEER_EXECUTABLE_PATH` (Recommended Workaround if download fails):**
+    *   If Puppeteer's automatic Chromium download repeatedly fails, you can tell it to use an existing Chrome or Chromium browser installed on your system.
+    *   **Find your Chrome executable path:**
+        *   **Windows:** Usually `C:\Program Files\Google\Chrome\Application\chrome.exe` or `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`. You can find it by right-clicking your Chrome shortcut, going to Properties, and looking at the "Target" field.
+        *   **macOS:** Usually `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
+        *   **Linux:** Often `/usr/bin/google-chrome`, `/opt/google/chrome/chrome`, or similar. Use the `which google-chrome` command in your terminal.
+    *   **Set the environment variable:** Before running `npm start` or `node server.js`, set the `PUPPETEER_EXECUTABLE_PATH` environment variable to the full path you found.
+        *   **Windows (Command Prompt):**
+            ```cmd
+            set PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+            ```
+            (Replace with your actual path. You might need to escape spaces or use quotes if the command interpreter requires it, though often `set` handles spaces well if the path itself is not quoted.)
+            For persistent setting, search for "environment variables" in Windows settings.
+        *   **Windows (PowerShell):**
+            ```powershell
+            $env:PUPPETEER_EXECUTABLE_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
+            ```
+        *   **Linux/macOS (Terminal):**
+            ```bash
+            export PUPPETEER_EXECUTABLE_PATH="/usr/bin/google-chrome"
+            ```
+            (Replace with your actual path.) Add this line to your shell profile (e.g., `.bashrc`, `.zshrc`) for persistence.
+    *   The application will detect this environment variable and use your specified Chrome/Chromium installation.
+
+### Other Issues
+*   **EBUSY errors during cleanup:** If you see errors related to files being busy during cleanup (often `chrome_debug.log`), it might mean a previous Puppeteer instance didn't shut down correctly. Restarting the server or even your machine might be necessary in rare cases to clear file locks. The application has been updated to handle these more gracefully to prevent crashes.
+
 This tool was created by Jules, your AI Software Engineer.
