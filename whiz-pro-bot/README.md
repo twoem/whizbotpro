@@ -86,5 +86,6 @@
 *   **WhatsApp Terms of Service**: Use responsibly. Automation can be against ToS.
 *   **Session Files**: The `baileys_auth_info/` directory contains sensitive session credentials. Keep this directory secure.
 *   **Error Handling**: Check console logs and the web log viewer for operational details and errors.
+*   **Console Output**: By default, Baileys may produce verbose logging in the console. This is normal and can be helpful for debugging. For advanced users, this can be customized by providing a configured Pino logger instance to Baileys if desired (current setup uses Baileys' default).
 
 Maintained by **Whiz**. Contact: `+254754783683`.

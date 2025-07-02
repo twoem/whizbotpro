@@ -67,7 +67,7 @@ async function connectToWhatsApp() {
         printQRInTerminal: true, // Output QR to terminal
         auth: state,
         browser: ['𝐖𝐇𝐈𝐙-𝐌𝐃', 'Chrome', '120.0'], // Browser name for WhatsApp Web
-        logger: { info: () => {}, error: console.error, warn: console.warn, debug: () => {} }, // Basic pino logger
+        // logger: { info: () => {}, error: console.error, warn: console.warn, debug: () => {} }, // Removed to use Baileys default logger
         // To prevent pino from flooding console, customize or use a more robust logger later
         // getMessage: async key => { return { conversation: 'hello' } } // Example, for message retries
     });
