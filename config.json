@@ -1,13 +1,13 @@
 {
   "botname": "WHIZBotPro",
   "ownername": "WHIZ",
-  "prefixes": ["!", ".", "*"],
+  "prefixes": ["!", ".", "*", "/"],
   "repo": "https://github.com/twoem/whizbotpro",
   "commands": [
-    "ping", "menu", "help", "uptime", "owner", "repo",
-    "vv", "sticker", "fancy", "echo", "time", "date",
-    "day", "month", "year", "quote", "joke", "fact",
-    "weather", "ytmp3", "ytmp4", "tiktok", "ai", "speed",
-    "shorten", "news", "identity", "about", "bye"
+    "ping","menu","help","uptime","owner","repo",
+    "vv","sticker","fancy","echo","time","date",
+    "day","month","year","quote","joke","fact",
+    "weather","ytmp3","ytmp4","tiktok","ai","speed",
+    "shorten","news","identity","about","bye"
   ]
 }
