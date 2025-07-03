@@ -1,0 +1,59 @@
+# Blueprint for deploying WHIZ-MD Bot on OnRender.com
+
+services:
+  - type: web # Can use 'web' for Node.js apps; 'worker' if no HTTP endpoint needed, but web log UI has one.
+    name: whiz-md-bot
+    env: node # Specifies the Node.js environment
+    region: oregon # Optional: specify a region, e.g., oregon, frankfurt, singapore. Default is Oregon.
+    plan: free # Optional: specify your plan, 'free' tier might have limitations (e.g. sleeping)
+
+    # Build and Start Commands
+    buildCommand: "npm install"
+    startCommand: "npm start"
+
+    # Health Check (OnRender uses this to determine if the service is running)
+    # The root path '/' in index.js returns "✅ 𝐖𝐇𝐈𝐙-𝐌𝐃 Bot is active..."
+    healthCheckPath: /
+
+    # Persistent Disk for Baileys session data and logs
+    # This disk will be mounted at the specified mountPath.
+    # Ensure DATA_DIR in your .env (or index.js default) matches this or is derived from it.
+    disks:
+      - name: whiz-md-data # A name for your disk
+        mountPath: /opt/render/project/src/data # Standard mount path on OnRender.
+                                               # Your app will access this via './data' if DATA_DIR is not set,
+                                               # or set DATA_DIR=/opt/render/project/src/data in env vars.
+        sizeGB: 1 # Smallest size, usually sufficient for session and logs.
+
+    # Environment Variables
+    # Set these in your OnRender service dashboard under 'Environment'.
+    # Alternatively, use 'envVarGroups' to link to an environment group.
+    # This section in render.yaml is more for documentation or if syncing from a blueprint.
+    # Actual values should be set securely in the OnRender dashboard.
+    envVars:
+      - key: NODE_VERSION # Optional: OnRender usually picks up from package.json 'engines'
+        value: "18" # Or "20", ensure it matches your 'engines' field or OnRender supported versions
+      - key: BOT_WEB_PORT
+        value: "3001" # OnRender will set its own PORT, but this is for your internal Express app.
+                      # OnRender's external routing will handle mapping.
+      - key: OWNER_JID
+        value: "" # Example: 2547xxxxxxxx@s.whatsapp.net - SET THIS IN ONRENDER DASHBOARD
+        sync: false # Do not sync this from blueprint if value is sensitive/empty
+      - key: OWNER_JID_FOR_STATUS_SAVES
+        value: "" # Example: 2547xxxxxxxx@s.whatsapp.net - SET THIS IN ONRENDER DASHBOARD
+        sync: false
+      - key: DATA_DIR # This tells the app where the persistent disk is mounted.
+        value: /opt/render/project/src/data # Matches the disk mountPath above.
+      # Add any other environment variables your bot might need in the future.
+      # For example, API keys for !weather or other commands.
+      # - key: WEATHER_API_KEY
+      #   value: ""
+      #   sync: false
+
+# Note on Free Plan:
+# Free web services on OnRender sleep after 15 minutes of inactivity.
+# For a bot that needs to be always responsive, consider a paid plan or a 'Background Worker' service type
+# if you don't need the HTTP endpoint for the log viewer to be publicly accessible without sleeping.
+# However, Background Workers on free tier also sleep.
+# A 'Cron Job' could be used to ping the health check endpoint periodically to keep a free web service awake,
+# but this is a workaround and subject to OnRender's fair use policies.

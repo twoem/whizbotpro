@@ -130,3 +130,45 @@
 *   **Console Output**: Baileys can be verbose in the console. Check the web log viewer for structured logs.
 
 Maintained by **Whiz**. Contact: `+254754783683`.
+
+## Deployment on OnRender.com
+
+This bot can be deployed as a Web Service on OnRender. A `render.yaml` blueprint file is included in this repository to simplify deployment.
+
+**Key Deployment Considerations:**
+
+1.  **Persistent Storage (Crucial for Session):**
+    *   The bot uses the `baileys_auth_info/` directory to store session credentials after you link your WhatsApp account via QR code. It also saves console logs to `logs.txt`.
+    *   OnRender's filesystems are ephemeral by default. To prevent losing your session and logs on every restart or redeploy, a **Persistent Disk** must be used.
+    *   The included `render.yaml` configures a 1GB persistent disk named `whiz-md-data` and mounts it to `/opt/render/project/src/data`.
+    *   The bot's `index.js` is configured to use the `DATA_DIR` environment variable (which `render.yaml` sets to this mount path) for storing `baileys_auth_info/` and `logs.txt`.
+    *   When setting up your service on OnRender (if not using the blueprint directly), ensure you create a persistent disk and set its mount path. Then, set the `DATA_DIR` environment variable in your OnRender service settings to this mount path.
+
+2.  **Environment Variables on OnRender:**
+    *   In your OnRender service dashboard (under "Environment"), you **must** set the following environment variables:
+        *   `OWNER_JID`: Your WhatsApp JID (e.g., `2547xxxxxxxx@s.whatsapp.net`) for owner-only commands.
+        *   `OWNER_JID_FOR_STATUS_SAVES`: The JID where saved statuses should be forwarded (can be the same as `OWNER_JID`).
+        *   `DATA_DIR`: Set this to the mount path of your persistent disk (e.g., `/opt/render/project/src/data` if using the `render.yaml` defaults).
+    *   Optional variables you might set:
+        *   `BOT_WEB_PORT`: While OnRender assigns `PORT` for web services, `index.js` uses `process.env.PORT || process.env.BOT_WEB_PORT || 3001`. For OnRender, `PORT` will be used automatically. `BOT_WEB_PORT` is mainly for local override if needed.
+        *   `NODE_VERSION`: OnRender usually respects the `engines` field in `package.json`.
+
+3.  **Build and Start Commands:**
+    *   The `render.yaml` uses `npm install` for building and `npm start` for starting. These should work by default.
+
+4.  **Health Check:**
+    *   The root path `/` serves a basic "Bot is active" message and can be used as the health check path in OnRender (default in `render.yaml`).
+
+5.  **Free Tier Limitations:**
+    *   Free web services on OnRender **sleep after 15 minutes of inactivity**. This means your bot will go offline and only wake up when an HTTP request is made to its web server (e.g., accessing the `/bot-log` page). This is not ideal for a bot that needs to be always responsive.
+    *   For continuous operation, consider upgrading to a paid plan on OnRender or using their "Background Worker" service type (though free background workers also sleep).
+    *   A common workaround for free web services is to use an external uptime monitoring service (like UptimeRobot, Cron-job.org) to ping your bot's health check URL (e.g., `your-bot-url.onrender.com/`) every 5-10 minutes to keep it awake.
+
+**Using `render.yaml`:**
+*   Connect your GitHub repository (containing this bot) to OnRender.
+*   Choose to deploy using a "Blueprint". OnRender should detect the `render.yaml` file.
+*   Review the service settings populated from the blueprint.
+*   **Crucially, go to the Environment Variables section for the created service in the OnRender dashboard and set your actual `OWNER_JID` and `OWNER_JID_FOR_STATUS_SAVES` values.**
+*   Deploy the service.
+
+Once deployed, the first time the bot starts, it will output a QR code in the **runtime logs** on OnRender. You'll need to access these logs, copy the QR code (it might be large text), or scan it quickly if your terminal displays it well enough, to link your WhatsApp account. After linking, the session will be saved on the persistent disk.
