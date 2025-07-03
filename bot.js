@@ -10,14 +10,22 @@ const fs = require('fs');
 const path = require('path');
 const figlet = require('figlet');
 const moment = require('moment');
+const qrcode = require('qrcode-terminal');
+const express = require('express');
 const fancytext = require('./lib/fancytext');
 const config = require('./config.json');
 
-// Ensure auth directory
+// --- Setup Express server for Render port binding ---
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get('/', (_, res) => res.send('🤖 WHIZBotPro is running'));
+app.listen(PORT, () => console.log(`🌐 Express listening on port ${PORT}`));
+
+// --- Ensure auth directory exists ---
 const authPath = './auth_info';
 if (!fs.existsSync(authPath)) fs.mkdirSync(authPath);
 
-// Uptime helper
+// --- Uptime helper ---
 let startTime = Date.now();
 const getUptime = () => {
   const diff = Date.now() - startTime;
@@ -27,30 +35,42 @@ const getUptime = () => {
 
 async function startBot() {
   console.clear();
-  // Big banner
   console.log(figlet.textSync(config.botname));
   console.log(`Owner: ${config.ownername}`);
 
+  // Auth state
   const { state, saveCreds } = await useMultiFileAuthState(authPath);
+
+  // Baileys version
   const { version } = await fetchLatestBaileysVersion();
   console.log(`Using WhatsApp version ${version.join('.')}`);
 
+  // Create socket
   const sock = makeWASocket({
     version,
     logger: P({ level: 'silent' }),
-    printQRInTerminal: true,
+    printQRInTerminal: false, // disabled built‑in
     auth: state,
     syncFullHistory: false
   });
 
+  // Save credentials
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', (u) => {
-    const { connection, lastDisconnect } = u;
+  // Connection updates: QR, reconnect, open
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      console.log('\n🔐 Please scan this QR code:\n');
+      qrcode.generate(qr, { small: true });
+    }
+
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
       console.log(`Disconnected: ${code}`);
       if (code !== DisconnectReason.loggedOut) startBot();
+      else console.log('Session logged out—delete auth_info/ and rerun to re-authenticate.');
     } else if (connection === 'open') {
       console.log('✅ Connected to WhatsApp');
       sock.sendMessage(sock.user.id, {
@@ -60,6 +80,7 @@ async function startBot() {
     }
   });
 
+  // Message handler
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
     if (!m.message || m.key.fromMe) return;
@@ -107,7 +128,9 @@ ${border}
         const view = m.message.ephemeralMessage?.message.viewOnceMessage?.message;
         if (view) {
           await sock.sendMessage(jid, { forward: view }, quoted);
-        } else return reply('⚠️ Reply to a view‑once message and send !vv');
+        } else {
+          return reply('⚠️ Reply to a view‑once message and send !vv');
+        }
         break;
       }
 
@@ -128,8 +151,8 @@ ${border}
       case 'quote': {
         const qs = [
           "“Code is humor…” – Cory House",
-          "“First, solve the problem…” – John Johnson",
-          "“Simplicity is the soul…” – Austin Freeman"
+          "“First, solve…” – John Johnson",
+          "“Simplicity…” – Austin Freeman"
         ];
         return reply(qs[Math.floor(Math.random() * qs.length)]);
       }
@@ -138,25 +161,25 @@ ${border}
         const js = [
           "Why do programmers hate nature? Too many bugs!",
           "Debugging: replacing bugs with features.",
-          "My code never has bugs. It just develops random features."
+          "My code never has bugs; it just develops random features."
         ];
         return reply(js[Math.floor(Math.random() * js.length)]);
       }
 
       case 'fact': {
         const fsn = [
-          "JS was invented in 10 days.",
+          "JavaScript was created in 10 days.",
           "Git was created by Linus Torvalds.",
-          "The first computer virus was in 1986."
+          "The first computer virus appeared in 1986."
         ];
         return reply(fsn[Math.floor(Math.random() * fsn.length)]);
       }
 
-      // Placeholders
+      // Placeholders 
       case 'ytmp3':
       case 'ytmp4':
       case 'tiktok':
-        return reply('🔗 Download not implemented.');
+        return reply('🔗 Download feature not implemented.');
 
       case 'ai':
         return reply(`🧠 AI: "${args.join(' ')}"`);
@@ -183,7 +206,8 @@ ${border}
         return reply('👋 Goodbye!');
 
       default:
-        return;
+        // ignore unknown
+        break;
     }
   });
 }
