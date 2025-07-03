@@ -8,7 +8,6 @@ const {
 const P = require('pino');
 const fs = require('fs');
 const path = require('path');
-const chalk = require('chalk');
 const figlet = require('figlet');
 const moment = require('moment');
 const fancytext = require('./lib/fancytext');
@@ -28,12 +27,13 @@ const getUptime = () => {
 
 async function startBot() {
   console.clear();
-  console.log(chalk.green(figlet.textSync(config.botname)));
-  console.log(chalk.blue(`Owner: ${config.ownername}`));
+  // Big banner
+  console.log(figlet.textSync(config.botname));
+  console.log(`Owner: ${config.ownername}`);
 
   const { state, saveCreds } = await useMultiFileAuthState(authPath);
   const { version } = await fetchLatestBaileysVersion();
-  console.log(chalk.yellow(`Using WhatsApp version ${version.join('.')}`));
+  console.log(`Using WhatsApp version ${version.join('.')}`);
 
   const sock = makeWASocket({
     version,
@@ -49,10 +49,10 @@ async function startBot() {
     const { connection, lastDisconnect } = u;
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
-      console.log(chalk.red(`Disconnected: ${code}`));
+      console.log(`Disconnected: ${code}`);
       if (code !== DisconnectReason.loggedOut) startBot();
     } else if (connection === 'open') {
-      console.log(chalk.green('✅ Connected to WhatsApp'));
+      console.log('✅ Connected to WhatsApp');
       sock.sendMessage(sock.user.id, {
         text: `🤖 *${config.botname}* is online\n⏱ Uptime: ${getUptime()}`
       });
@@ -76,7 +76,7 @@ async function startBot() {
     const cmd = cmdRaw.toLowerCase();
     const quoted = { quoted: m };
 
-    console.log(chalk.gray(`[MSG] ${jid} » ${body}`));
+    console.log(`[MSG] ${jid} » ${body}`);
     const reply = (t) => sock.sendMessage(jid, { text: t }, quoted);
 
     switch (cmd) {
@@ -99,8 +99,8 @@ ${border}
 │ ${config.commands.join('\n│ ')}
 ${border}
 ╰─ Have fun! ──
-`;
-        return sock.sendMessage(jid, { text: menu.trim() }, quoted);
+`.trim();
+        return sock.sendMessage(jid, { text: menu }, quoted);
       }
 
       case 'vv': {
@@ -126,18 +126,30 @@ ${border}
       case 'year': return reply(`📆 ${moment().format('YYYY')}`);
 
       case 'quote': {
-        const qs = ["“Code is humor…”","“First solve…”","“Simplicity…”"];
-        return reply(qs[Math.floor(Math.random()*qs.length)]);
+        const qs = [
+          "“Code is humor…” – Cory House",
+          "“First, solve the problem…” – John Johnson",
+          "“Simplicity is the soul…” – Austin Freeman"
+        ];
+        return reply(qs[Math.floor(Math.random() * qs.length)]);
       }
 
       case 'joke': {
-        const js = ["Why bugs?","Debugging…","My code…"];
-        return reply(js[Math.floor(Math.random()*js.length)]);
+        const js = [
+          "Why do programmers hate nature? Too many bugs!",
+          "Debugging: replacing bugs with features.",
+          "My code never has bugs. It just develops random features."
+        ];
+        return reply(js[Math.floor(Math.random() * js.length)]);
       }
 
       case 'fact': {
-        const fsn = ["JS in 10 days","Git by Torvalds","Virus 1986"];
-        return reply(fsn[Math.floor(Math.random()*fsn.length)]);
+        const fsn = [
+          "JS was invented in 10 days.",
+          "Git was created by Linus Torvalds.",
+          "The first computer virus was in 1986."
+        ];
+        return reply(fsn[Math.floor(Math.random() * fsn.length)]);
       }
 
       // Placeholders
