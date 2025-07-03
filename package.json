@@ -8,10 +8,10 @@
     "start": "node bot.js"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=20.0.0"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0",
+    "@whiskeysockets/baileys": "^6.7.18",
     "@hapi/boom": "^10.0.0",
     "pino": "^8.0.0",
     "figlet": "^1.5.2",
